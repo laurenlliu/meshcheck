@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MeshCheck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: page 1 is one full screen (nav + centered red box), page 2 scrolls in below it.
+     Assistant buttons stay fixed in the bottom-right corner. */
+  :root {
+    --red: #D21404;        /* warnings / logo / accents */
+    --gold-red: #EB5406;   /* sections, active tab, tiger button */
+    --pink: #FFCBD1;       /* page background */
+    --gold: #FFD700;       /* tutorial, plus button */
+    --box: #FF5350;        /* home page boxes */
+    --ink: #1B1F27;
+    --white: #FFFFFF;
+    --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background-color: var(--pink);
+    background-image:
+      linear-gradient(rgba(27, 31, 39, .08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(27, 31, 39, .08) 1px, transparent 1px);
+    background-size: 32px 32px;
+    color: var(--ink);
+    font-family: var(--font);
+    font-size: 18px;
+    line-height: 1.5;
+  }
+  a, button { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+
+  /* NAV */
+  .nav {
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px clamp(16px, 5.5vw, 80px);
+    flex-wrap: wrap;
+  }
+  .tabs { display: flex; width: min(720px, 100%); }
+  .tab { flex: 1; text-align: center; padding: 10px 12px; border-left: 1px solid var(--ink); text-decoration: none; font-size: 18px; }
+  .tab:last-child { border-right: 1px solid var(--ink); }
+  .tab:hover { background: rgba(27, 31, 39, .08); }
+  .tab[aria-current="page"] { background: rgba(27, 31, 39, .14); color: var(--ink); font-weight: 600; }
+
+  /* PAGE 1 */
+  .page1 {
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column;
+  }
+  .stage {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 28px; padding: 0 clamp(16px, 5.5vw, 80px) 56px;
+  }
+  .hero {
+    width: 100%; max-width: 1100px;
+    background: var(--box); color: #000000;
+    border-radius: 12px;
+    padding: clamp(56px, 10vw, 130px) clamp(20px, 4vw, 48px);
+    text-align: center;
+    display: flex; flex-direction: column; gap: 20px; align-items: center;
+  }
+  .hero h1 { margin: 0; font-size: clamp(36px, 6.4vw, 80px); line-height: 1.08; font-weight: 700; text-wrap: balance; }
+  .hero p { margin: 0; font-size: clamp(18px, 2.4vw, 30px); }
+  .scroll-hint { display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 600; font-size: 16px; text-decoration: none; }
+  .scroll-hint svg { color: var(--red); }
+
+  /* PAGE 2 */
+  .page2 {
+    max-width: 1440px; margin: 0 auto;
+    padding: 80px clamp(16px, 5.5vw, 80px) 220px;
+    display: flex; flex-direction: column; gap: 32px;
+  }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; min-height: 220px; }
+  .tutorial {
+    background: var(--gold); border: 0; border-radius: 12px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    padding: 32px 20px; min-height: 220px;
+    transition: transform .15s ease;
+  }
+  .tutorial:hover { transform: translateY(-3px); }
+  .tutorial strong { font-size: 40px; font-weight: 600; line-height: 1.1; }
+  .dropzone {
+    background: var(--white); border: 3px dashed var(--red); border-radius: 12px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    padding: 32px 20px; min-height: 220px; text-align: center;
+    transition: background .15s ease, transform .15s ease;
+  }
+  .dropzone:hover, .dropzone.over { background: #FFF3F3; transform: translateY(-3px); }
+  .dropzone svg { color: var(--red); }
+  .dropzone strong { font-size: 32px; font-weight: 600; line-height: 1.2; }
+  .status { min-height: 1.5em; font-weight: 600; }
+  .status.error { color: var(--red); }
+
+  .details {
+    background: var(--box); border-radius: 12px;
+    padding: clamp(24px, 4vw, 56px);
+    display: flex; flex-direction: column; gap: 24px;
+  }
+  .details p { margin: 0; font-size: 20px; line-height: 1.5; max-width: 80ch; }
+
+  /* ASSISTANT DOCK (fixed) */
+  .dock {
+    position: fixed; right: 40px; bottom: 40px; z-index: 10;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  }
+  .bubble {
+    background: var(--white); border: 2px solid var(--ink); border-radius: 8px;
+    padding: 10px 16px; font-weight: 600; font-size: 16px;
+  }
+  .bubble[hidden] { display: none; }
+  .round { border-radius: 999px; display: grid; place-items: center; cursor: pointer; padding: 0; transition: transform .15s ease; }
+  .round:hover { transform: scale(1.06); }
+  .tiger { width: 80px; height: 80px; background: none; border: 0; }
+  .tiger svg { width: 80px; height: 80px; }
+  .plus { width: 56px; height: 56px; background: var(--gold); border: 2px solid var(--ink); }
+
+  /* TUTORIAL DIALOG */
+  dialog { border: 0; border-radius: 12px; padding: 32px; max-width: min(520px, calc(100vw - 32px)); background: var(--white); color: var(--ink); }
+  dialog::backdrop { background: rgba(27, 31, 39, .5); }
+  dialog h3 { margin: 0 0 12px; font-size: 28px; }
+  dialog ol { margin: 0 0 24px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+  .close { background: var(--red); color: var(--white); border: 0; border-radius: 8px; padding: 10px 24px; font-weight: 600; cursor: pointer; }
+
+  @media (max-width: 760px) {
+    .actions { grid-template-columns: 1fr; }
+    .dock { right: 16px; bottom: 16px; }
+    .tiger { width: 64px; height: 64px; }
+    .tiger svg { width: 64px; height: 64px; }
+    .page2 { padding-bottom: 260px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<section class="page1" id="top">
+  <header class="nav">
+    <nav class="tabs" aria-label="Main">
+      <a class="tab" href="#top" aria-current="page">Home</a>
+      <a class="tab" href="#" data-soon>My Archive</a>
+      <a class="tab" href="#" data-soon>My Project</a>
+    </nav>
+  </header>
+
+  <div class="stage">
+    <div class="hero">
+      <h1>Welcome to MeshCheck!</h1>
+      <p>Tailor to all of your 3D modeling needs</p>
+    </div>
+    <a class="scroll-hint" href="#start">
+      Scroll down
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="m6 10 8 8 8-8" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+</section>
+
+<main class="page2" id="start">
+  <div class="actions">
+    <button class="tutorial" id="tutorialBtn" type="button">
+      <strong>Tutorial</strong>
+    </button>
+
+    <div class="dropzone" id="drop" role="button" tabindex="0" aria-label="Drag files here to start, or press Enter to choose a file">
+      <strong>Drag Files Here to Start!</strong>
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 6v24M14 21l10 10 10-10M8 34v6h32v-6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="status" id="status" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+
+  <section class="details">
+    <p>MeshCheck is a website where you can safely check your 3D model to catch potential problems before a model is sent to a 3D printer. Users can upload an STL or 3MF file that they have exported from their 3D modeling software, provide information about what the part is, what it is used for, and how it is expected to function. MeshCheck then analyzes the model’s geometry and printing characteristics to identify issues such as weak areas, unsupported features, non-manifold geometry, difficult-to-print details, and other potential problems. Understanding the purpose of the part allows MeshCheck to provide better feedback.</p>
+    <p>The goal of MeshCheck is to reduce failed prints and unnecessary wastes of filament and design iterations. Instead of discovering a problem after spending hours waiting for a prototype to be finished printing, MeshCheck gives all of the 3D printing results to you instantly, and also gives you feedback on improvements in your design. We hope to increase the chances that your first print is successful. This allows everyone to spend less time troubleshooting and more time developing and testing their prototypes.</p>
+  </section>
+</main>
+
+<div class="dock">
+  <div class="bubble" id="bubble">Introduction to AI</div>
+  <button class="round tiger" id="tigerBtn" type="button" aria-label="Open the AI assistant" aria-expanded="true">
+    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" aria-hidden="true"><path d="M8 20 6 6l13 6M48 20l2-14-13 6" fill="#FFD700" stroke="#1B1F27" stroke-width="2.5" stroke-linejoin="round"/><circle cx="28" cy="31" r="21" fill="#FFB347" stroke="#1B1F27" stroke-width="2.5"/><path d="M28 10v8M19 12l2 7M37 12l-2 7M8 28l7 1M7 36l8-1M48 28l-7 1M49 36l-8-1" stroke="#1B1F27" stroke-width="2.5" stroke-linecap="round"/><ellipse cx="28" cy="40" rx="10" ry="7" fill="#FFF3E0" stroke="#1B1F27" stroke-width="2"/><circle cx="20" cy="29" r="2.8" fill="#1B1F27"/><circle cx="36" cy="29" r="2.8" fill="#1B1F27"/><path d="M25 36h6l-3 3.5-3-3.5ZM28 39.5v2.5M24 43.5c1.5 1.5 6.5 1.5 8 0" stroke="#1B1F27" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="#1B1F27"/></svg>
+  </button>
+  <button class="round plus" id="plusBtn" type="button" aria-label="Choose a file to upload">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M14 4v20M4 14h20" stroke="#1B1F27" stroke-width="4" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<input type="file" id="file" accept=".stl,.3mf" hidden>
+
+<dialog id="tutorialDialog" aria-labelledby="tutTitle">
+  <h3 id="tutTitle">How MeshCheck works</h3>
+  <ol>
+    <li>Upload your STL or 3MF file.</li>
+    <li>Tell MeshCheck what the part is for.</li>
+    <li>Review the problems it finds and the suggested fixes.</li>
+  </ol>
+  <button class="close" id="closeTut" type="button">Got it</button>
+</dialog>
+
+<script>
+  var drop = document.getElementById('drop');
+  var file = document.getElementById('file');
+  var status = document.getElementById('status');
+  var OK = /\.(stl|3mf)$/i;
+
+  function size(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  function handle(f) {
+    if (!f) return;
+    if (!OK.test(f.name)) {
+      status.className = 'status error';
+      status.textContent = 'Only .stl and .3mf files are accepted.';
+      return;
+    }
+    status.className = 'status';
+    status.textContent = 'Selected: ' + f.name + ' (' + size(f.size) + ')';
+  }
+  drop.addEventListener('click', function () { file.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } });
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) { handle(e.dataTransfer.files[0]); });
+  file.addEventListener('change', function () { handle(file.files[0]); file.value = ''; });
+
+  document.getElementById('plusBtn').addEventListener('click', function () {
+    document.getElementById('start').scrollIntoView({ behavior: 'smooth' });
+    file.click();
+  });
+
+  var bubble = document.getElementById('bubble');
+  var tiger = document.getElementById('tigerBtn');
+  tiger.addEventListener('click', function () {
+    bubble.hidden = !bubble.hidden;
+    tiger.setAttribute('aria-expanded', String(!bubble.hidden));
+  });
+
+  var dlg = document.getElementById('tutorialDialog');
+  document.getElementById('tutorialBtn').addEventListener('click', function () { dlg.showModal(); });
+  document.getElementById('closeTut').addEventListener('click', function () { dlg.close(); });
+
+  document.querySelectorAll('[data-soon]').forEach(function (a) { a.addEventListener('click', function (e) { e.preventDefault(); }); });
+</script>
+</body>
+</html>
