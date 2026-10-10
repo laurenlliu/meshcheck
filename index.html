@@ -160,6 +160,13 @@
     background: var(--white); border: 2px solid var(--ink); border-radius: 50%; color: var(--ink);
   }
   .filex:hover { background: var(--pink); }
+  .addfile {
+    background: var(--white); border: 2px solid var(--ink); border-radius: 3px;
+    padding: 6px 18px; font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .addfile:hover { background: var(--pink); }
+  .addfile[hidden], .filechip[hidden] { display: none; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   .popup label, .popup .note { display: block; margin-bottom: 10px; font-size: 16px; line-height: 1.4; }
   .popup textarea {
     width: 100%; height: 280px; resize: none; display: block;
@@ -259,7 +266,8 @@
 
 <dialog class="popup wide" id="promptDialog" aria-labelledby="promptLabel">
   <div class="filebar">
-    <div class="filechip">
+    <button class="addfile" id="addFile" type="button" hidden>+ Add file</button>
+    <div class="filechip" id="chip">
       <span class="name" id="fileName"></span>
       <button class="filex" id="removeFile" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
     </div>
@@ -302,24 +310,33 @@
   var progress = document.getElementById('progress');
   var partInfo = document.getElementById('partInfo');
 
+  var chip = document.getElementById('chip');
+  var addBtn = document.getElementById('addFile');
+  var okBtn = document.getElementById('okBtn');
+  function setFile(name) {
+    var has = !!name;
+    chip.hidden = !has;
+    addBtn.hidden = has;
+    okBtn.disabled = !has;
+    document.getElementById('fileName').textContent = name || '';
+  }
   function handle(f) {
     if (!f) return;
     if (!OK.test(f.name)) {
       document.getElementById('wrongName').textContent = f.name;
-      wrongDlg.showModal();
+      wrongDlg.showModal();   // if the prompt is open, it stays underneath
       return;
     }
-    document.getElementById('fileName').textContent = f.name;
-    partInfo.value = '';
-    promptDlg.showModal();
+    if (!promptDlg.open) {    // new upload: start the prompt fresh
+      partInfo.value = '';
+      promptDlg.showModal();
+    }
+    setFile(f.name);          // adding or replacing a file keeps what was typed
   }
-  document.getElementById('removeFile').addEventListener('click', function () {
-    promptDlg.close();
-    file.value = '';
-    file.click();   // remove this file and pick another
-  });
+  document.getElementById('removeFile').addEventListener('click', function () { setFile(''); });
+  addBtn.addEventListener('click', function () { file.click(); });
   document.getElementById('cancelBtn').addEventListener('click', function () { promptDlg.close(); });
-  document.getElementById('okBtn').addEventListener('click', function () {
+  okBtn.addEventListener('click', function () {
     promptDlg.close();
     progress.classList.add('on');
     // Placeholder until the My Project screen exists: the bar slides, then we return home.
