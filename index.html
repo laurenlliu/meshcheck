@@ -142,20 +142,24 @@
   .popup::backdrop { background: rgba(27, 31, 39, .45); }
   .popup h2 { margin: 0 0 18px; font-size: 26px; line-height: 1.2; font-family: var(--arial); }
   .filebar {
-    position: relative;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    background: var(--white); border: 3px solid var(--orange); border-radius: 4px;
-    padding: 8px 40px 8px 12px; margin-bottom: 18px; min-height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--orange); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 14px 28px; margin-bottom: 18px; min-height: 64px;
     font-size: 16px; font-weight: 700;
   }
-  .filex {
-    position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; padding: 0;
-    display: grid; place-items: center; cursor: pointer;
-    background: none; border: 0; border-radius: 4px; color: var(--ink);
-  }
-  .filex:hover { background: rgba(255, 153, 28, .25); }
   .filebar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .filetag { flex: none; background: var(--white); border: 2px solid var(--ink); border-radius: 3px; padding: 0 8px; font-size: 14px; font-weight: 700; }
+  .filechip {
+    position: relative; max-width: 100%;
+    background: var(--white); border: 2px solid var(--ink); border-radius: 3px;
+    padding: 6px 18px; font-size: 16px; font-weight: 700;
+  }
+  .filechip .name { display: block; }
+  .filex {
+    position: absolute; top: -11px; right: -11px; width: 22px; height: 22px; padding: 0;
+    display: grid; place-items: center; cursor: pointer;
+    background: var(--white); border: 2px solid var(--ink); border-radius: 50%; color: var(--ink);
+  }
+  .filex:hover { background: var(--pink); }
   .popup label, .popup .note { display: block; margin-bottom: 10px; font-size: 16px; line-height: 1.4; }
   .popup textarea {
     width: 100%; height: 280px; resize: none; display: block;
@@ -254,8 +258,11 @@
 <input type="file" id="file" accept=".stl,.3mf" hidden>
 
 <dialog class="popup wide" id="promptDialog" aria-labelledby="promptLabel">
-  <div class="filebar"><span class="name" id="fileName"></span><span class="filetag" id="fileTag"></span>
-    <button class="filex" id="removeFile" type="button" aria-label="Remove this file and choose another"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+  <div class="filebar">
+    <div class="filechip">
+      <span class="name" id="fileName"></span>
+      <button class="filex" id="removeFile" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
+    </div>
   </div>
   <label id="promptLabel" for="partInfo">Write a sentence or two about your part to help us give better and more accurate feedback. This is completely optional!</label>
   <textarea id="partInfo" autofocus placeholder="Example: a slider for a mechanical pencil eraser"></textarea>
@@ -303,7 +310,6 @@
       return;
     }
     document.getElementById('fileName').textContent = f.name;
-    document.getElementById('fileTag').textContent = f.name.split('.').pop().toUpperCase();
     partInfo.value = '';
     promptDlg.showModal();
   }
