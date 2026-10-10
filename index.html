@@ -137,6 +137,8 @@
     width: min(420px, calc(100vw - 32px)); max-width: none;
     background: var(--white); color: var(--ink); font-family: var(--arial);
   }
+  .popup.wide { width: min(700px, calc(100vw - 32px)); padding: 32px 36px 28px; }
+  .popup.wide textarea { height: 300px; }
   .popup::backdrop { background: rgba(27, 31, 39, .45); }
   .popup h2 { margin: 0 0 18px; font-size: 26px; line-height: 1.2; font-family: var(--arial); }
   .filebar {
@@ -244,7 +246,7 @@
 
 <input type="file" id="file" accept=".stl,.3mf" hidden>
 
-<dialog class="popup" id="promptDialog" aria-labelledby="promptLabel">
+<dialog class="popup wide" id="promptDialog" aria-labelledby="promptLabel">
   <div class="filebar"><span class="name" id="fileName"></span><span class="filetag" id="fileTag"></span></div>
   <label id="promptLabel" for="partInfo">Write a sentence or two about your part to help us give better and more accurate feedback. This is completely optional!</label>
   <textarea id="partInfo" placeholder="Example: a slider for a mechanical pencil eraser"></textarea>
