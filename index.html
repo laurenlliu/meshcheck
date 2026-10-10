@@ -6,7 +6,7 @@
 <title>MeshCheck</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Comfortaa:wght@400;600;700&family=EB+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Layout: page 1 is one full screen (nav + centered red box), page 2 scrolls in below it.
      Assistant buttons stay fixed in the bottom-right corner. */
@@ -18,6 +18,10 @@
     --box: #FF5350;        /* home page boxes */
     --ink: #1B1F27;
     --white: #FFFFFF;
+    --orange: #FF991C;     /* cancel, ok, file bar */
+    --comfortaa: "Comfortaa", "Inter", system-ui, sans-serif;
+    --garamond: "EB Garamond", Garamond, Georgia, serif;
+    --arial: Arial, Helvetica, sans-serif;
     --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   }
   * { box-sizing: border-box; }
@@ -44,7 +48,7 @@
     flex-wrap: wrap;
   }
   .tabs { display: flex; width: min(720px, 100%); }
-  .tab { flex: 1; text-align: center; padding: 10px 12px; border-left: 1px solid var(--ink); text-decoration: none; font-size: 18px; }
+  .tab { font-family: var(--comfortaa); flex: 1; text-align: center; padding: 10px 12px; border-left: 1px solid var(--ink); text-decoration: none; font-size: 18px; }
   .tab:last-child { border-right: 1px solid var(--ink); }
   .tab:hover { background: rgba(27, 31, 39, .08); }
   .tab[aria-current="page"] { background: rgba(27, 31, 39, .14); color: var(--ink); font-weight: 600; }
@@ -66,8 +70,8 @@
     text-align: center;
     display: flex; flex-direction: column; gap: 20px; align-items: center;
   }
-  .hero h1 { margin: 0; font-size: clamp(36px, 6.4vw, 80px); line-height: 1.08; font-weight: 700; text-wrap: balance; }
-  .hero p { margin: 0; font-size: clamp(18px, 2.4vw, 30px); }
+  .hero h1 { font-family: var(--comfortaa); margin: 0; font-size: clamp(36px, 6.4vw, 80px); line-height: 1.08; font-weight: 700; text-wrap: balance; }
+  .hero p { font-family: var(--comfortaa); margin: 0; font-size: clamp(18px, 2.4vw, 30px); }
   .scroll-hint { display: flex; flex-direction: column; align-items: center; gap: 4px; font-weight: 600; font-size: 16px; text-decoration: none; }
   .scroll-hint svg { color: var(--red); }
 
@@ -79,13 +83,13 @@
   }
   .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; min-height: 220px; }
   .tutorial {
-    background: var(--gold); border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--gold); border: 2px solid var(--ink); border-radius: 12px; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
     padding: 32px 20px; min-height: 220px;
     transition: transform .15s ease;
   }
   .tutorial:hover { transform: translateY(-3px); }
-  .tutorial strong { font-size: 40px; font-weight: 600; line-height: 1.1; }
+  .tutorial strong { font-family: var(--garamond); font-size: 44px; font-weight: 700; line-height: 1.1; }
   .dropzone {
     background: var(--white); border: 3px dashed var(--red); border-radius: 12px; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
@@ -94,16 +98,14 @@
   }
   .dropzone:hover, .dropzone.over { background: #FFF3F3; transform: translateY(-3px); }
   .dropzone svg { color: var(--red); }
-  .dropzone strong { font-size: 32px; font-weight: 600; line-height: 1.2; }
-  .status { min-height: 1.5em; font-weight: 600; }
-  .status.error { color: var(--red); }
+  .dropzone strong { font-family: var(--garamond); font-size: 36px; font-weight: 700; line-height: 1.2; }
 
   .details {
     background: var(--box); border-radius: 12px;
     padding: clamp(24px, 4vw, 56px);
     display: flex; flex-direction: column; gap: 24px;
   }
-  .details p { margin: 0; font-size: 20px; line-height: 1.5; max-width: 80ch; }
+  .details p { font-family: var(--arial); margin: 0; font-size: 20px; line-height: 1.5; max-width: 80ch; }
 
   /* ASSISTANT DOCK (fixed) */
   .dock {
@@ -128,6 +130,53 @@
   dialog ol { margin: 0 0 24px; padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
   .close { background: var(--red); color: var(--white); border: 0; border-radius: 8px; padding: 10px 24px; font-weight: 600; cursor: pointer; }
 
+
+  /* POPUPS: prompt (after upload), wrong file, progress bar */
+  .popup {
+    border: 3px solid var(--ink); border-radius: 6px; padding: 28px 24px 24px;
+    width: min(420px, calc(100vw - 32px)); max-width: none;
+    background: var(--white); color: var(--ink); font-family: var(--arial);
+  }
+  .popup::backdrop { background: rgba(27, 31, 39, .45); }
+  .popup h2 { margin: 0 0 18px; font-size: 26px; line-height: 1.2; font-family: var(--arial); }
+  .filebar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--orange); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 8px 12px; margin-bottom: 18px; min-height: 44px;
+    font-size: 16px; font-weight: 700;
+  }
+  .filebar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filetag { flex: none; background: var(--white); border: 2px solid var(--ink); border-radius: 3px; padding: 0 8px; font-size: 14px; font-weight: 700; }
+  .popup label, .popup .note { display: block; margin-bottom: 10px; font-size: 16px; line-height: 1.4; }
+  .popup textarea {
+    width: 100%; height: 280px; resize: none; display: block;
+    background: var(--pink); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 12px; font: 16px/1.4 var(--arial); color: var(--ink);
+  }
+  .popup textarea::placeholder { color: rgba(27, 31, 39, .55); }
+  .msgbox {
+    background: var(--pink); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 16px; font-size: 18px; line-height: 1.45; min-height: 150px;
+  }
+  .btns { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; }
+  .btn {
+    background: var(--orange); border: 2px solid var(--ink); border-radius: 4px;
+    padding: 10px 28px; font-size: 18px; font-weight: 700; cursor: pointer;
+  }
+  .btn:hover { filter: brightness(.95); }
+
+  .progress-screen {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    background: rgba(255, 255, 255, .78);
+    align-items: center; justify-content: center; flex-direction: column; gap: 16px;
+    font-family: var(--arial);
+  }
+  .progress-screen.on { display: flex; }
+  .progress-screen p { margin: 0; font-size: 22px; font-weight: 700; color: #000; }
+  .bar { width: min(420px, 80vw); height: 20px; background: var(--white); border: 2px solid #000; border-radius: 4px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 40%; background: #000; animation: slide 1.3s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+
   @media (max-width: 760px) {
     .actions { grid-template-columns: 1fr; }
     .dock { right: 16px; bottom: 16px; }
@@ -138,6 +187,7 @@
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     * { transition: none !important; }
+    .bar i { animation: none; width: 100%; }
   }
 </style>
 </head>
@@ -173,7 +223,6 @@
     <div class="dropzone" id="drop" role="button" tabindex="0" aria-label="Drag files here to start, or press Enter to choose a file">
       <strong>Drag Files Here to Start!</strong>
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 6v24M14 21l10 10 10-10M8 34v6h32v-6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="status" id="status" role="status" aria-live="polite"></span>
     </div>
   </div>
 
@@ -195,6 +244,27 @@
 
 <input type="file" id="file" accept=".stl,.3mf" hidden>
 
+<dialog class="popup" id="promptDialog" aria-labelledby="promptLabel">
+  <div class="filebar"><span class="name" id="fileName"></span><span class="filetag" id="fileTag"></span></div>
+  <label id="promptLabel" for="partInfo">Write a sentence or two about your part to help us give better and more accurate feedback. This is completely optional!</label>
+  <textarea id="partInfo" placeholder="Example: a slider for a mechanical pencil eraser"></textarea>
+  <div class="btns">
+    <button class="btn" id="cancelBtn" type="button">Cancel</button>
+    <button class="btn" id="okBtn" type="button">OK!</button>
+  </div>
+</dialog>
+
+<dialog class="popup" id="wrongDialog" aria-labelledby="wrongTitle">
+  <h2 id="wrongTitle">Whoops! Wrong file!</h2>
+  <div class="filebar"><span class="name" id="wrongName"></span></div>
+  <div class="msgbox">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
+</dialog>
+
+<div class="progress-screen" id="progress" role="status" aria-live="polite">
+  <p>Preparing your model…</p>
+  <div class="bar"><i></i></div>
+</div>
+
 <dialog id="tutorialDialog" aria-labelledby="tutTitle">
   <h3 id="tutTitle">How MeshCheck works</h3>
   <ol>
@@ -208,20 +278,34 @@
 <script>
   var drop = document.getElementById('drop');
   var file = document.getElementById('file');
-  var status = document.getElementById('status');
   var OK = /\.(stl|3mf)$/i;
+  var promptDlg = document.getElementById('promptDialog');
+  var wrongDlg = document.getElementById('wrongDialog');
+  var progress = document.getElementById('progress');
+  var partInfo = document.getElementById('partInfo');
 
-  function size(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
   function handle(f) {
     if (!f) return;
     if (!OK.test(f.name)) {
-      status.className = 'status error';
-      status.textContent = 'Only .stl and .3mf files are accepted.';
+      document.getElementById('wrongName').textContent = f.name;
+      wrongDlg.showModal();
       return;
     }
-    status.className = 'status';
-    status.textContent = 'Selected: ' + f.name + ' (' + size(f.size) + ')';
+    document.getElementById('fileName').textContent = f.name;
+    document.getElementById('fileTag').textContent = f.name.split('.').pop().toUpperCase();
+    partInfo.value = '';
+    promptDlg.showModal();
   }
+  document.getElementById('cancelBtn').addEventListener('click', function () { promptDlg.close(); });
+  document.getElementById('okBtn').addEventListener('click', function () {
+    promptDlg.close();
+    progress.classList.add('on');
+    // Placeholder until the My Project screen exists: the bar slides, then we return home.
+    setTimeout(function () { progress.classList.remove('on'); }, 4500);
+  });
+  // The wrong-file popup has no button in his sketch: click outside it (or press Esc) to close.
+  wrongDlg.addEventListener('click', function (e) { if (e.target === wrongDlg) wrongDlg.close(); });
+  promptDlg.addEventListener('click', function (e) { if (e.target === promptDlg) promptDlg.close(); });
   drop.addEventListener('click', function () { file.click(); });
   drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); file.click(); } });
   ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
