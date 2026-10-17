@@ -137,7 +137,9 @@
     width: min(420px, calc(100vw - 32px)); max-width: none;
     background: var(--white); color: var(--ink); font-family: var(--garamond);
   }
-  .popup.wide { width: min(700px, calc(100vw - 32px)); padding: 32px 36px 28px; }
+  .popup.wide { width: min(700px, calc(100vw - 32px)); min-height: 600px; padding: 32px 36px 28px; }
+  .popup.wrong[open] { display: flex; flex-direction: column; }
+  .popup.wrong .msgbox { flex: 1; }
   .popup.wide textarea { height: 300px; }
   .popup::backdrop { background: rgba(27, 31, 39, .45); }
   .popup h2 { margin: 0 0 18px; font-size: 32px; line-height: 1.2; font-family: var(--garamond); }
@@ -173,7 +175,7 @@
     padding: 6px 18px; font-size: 20px; font-weight: 700; cursor: pointer;
   }
   .addfile:hover { background: var(--pink); }
-  .addfile[hidden], .filechip[hidden] { display: none; }
+  .addfile[hidden], .filechip[hidden], .filebar [hidden] { display: none; }
   .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
   .popup label, .popup .note { display: block; margin-bottom: 10px; font-size: 20px; line-height: 1.35; }
   .popup textarea {
@@ -288,11 +290,12 @@
   </div>
 </dialog>
 
-<dialog class="popup wrong" id="wrongDialog" aria-labelledby="wrongTitle">
+<dialog class="popup wide wrong" id="wrongDialog" aria-labelledby="wrongTitle">
   <button class="popx" id="wrongClose" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
   <h2 id="wrongTitle" tabindex="-1" autofocus>Whoops! Wrong file!</h2>
   <div class="filebar">
     <span class="name" id="wrongName"></span>
+    <button class="addfile" id="wrongAdd" type="button" hidden>+ Add file</button>
     <button class="filex" id="wrongRemove" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
   </div>
   <div class="msgbox">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
@@ -332,13 +335,20 @@
     okBtn.disabled = !has;
     document.getElementById('fileName').textContent = name || '';
   }
+  function showWrong(name) {
+    var n = document.getElementById('wrongName');
+    n.textContent = name; n.hidden = false;
+    document.getElementById('wrongAdd').hidden = true;
+    document.getElementById('wrongRemove').hidden = false;
+    if (!wrongDlg.open) wrongDlg.showModal();
+  }
   function handle(f) {
     if (!f) return;
     if (!OK.test(f.name)) {
-      document.getElementById('wrongName').textContent = f.name;
-      wrongDlg.showModal();   // if the prompt is open, it stays underneath
+      showWrong(f.name);      // if the prompt is open, it stays underneath
       return;
     }
+    if (wrongDlg.open) wrongDlg.close();
     if (!promptDlg.open) {    // new upload: start the prompt fresh
       partInfo.value = '';
       promptDlg.showModal();
@@ -354,13 +364,15 @@
     // Placeholder until the My Project screen exists: the bar slides, then we return home.
     setTimeout(function () { progress.classList.remove('on'); }, 4500);
   });
-  // Wrong-file popup: the X in its corner closes it; the X on the orange bar removes the file and opens the picker.
+  // Wrong-file popup: the X in its corner closes it; the X on the orange bar removes the file and offers "Add file".
   document.getElementById('wrongClose').addEventListener('click', function () { wrongDlg.close(); });
   document.getElementById('wrongRemove').addEventListener('click', function () {
-    wrongDlg.close();
-    file.value = '';
-    file.click();
+    // like the prompt popup: remove the file, stay here, and offer "Add file"
+    document.getElementById('wrongName').hidden = true;
+    document.getElementById('wrongRemove').hidden = true;
+    document.getElementById('wrongAdd').hidden = false;
   });
+  document.getElementById('wrongAdd').addEventListener('click', function () { file.click(); });
   wrongDlg.addEventListener('click', function (e) { if (e.target === wrongDlg) wrongDlg.close(); });
   promptDlg.addEventListener('click', function (e) { if (e.target === promptDlg) promptDlg.close(); });
   drop.addEventListener('click', function () { file.click(); });
