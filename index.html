@@ -147,6 +147,14 @@
     padding: 14px 28px; margin-bottom: 18px; min-height: 64px;
     font-size: 20px; font-weight: 700;
   }
+  .wrong .filebar { position: relative; }
+  .wrong h2 { outline: none; text-align: center; margin: 4px 24px 22px; }
+  .popx {
+    position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; padding: 0;
+    display: grid; place-items: center; cursor: pointer;
+    background: none; border: 0; border-radius: 4px; color: var(--ink);
+  }
+  .popx:hover { background: var(--pink); }
   .filebar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .filechip {
     position: relative; max-width: 100%;
@@ -280,9 +288,13 @@
   </div>
 </dialog>
 
-<dialog class="popup" id="wrongDialog" aria-labelledby="wrongTitle">
-  <h2 id="wrongTitle">Whoops! Wrong file!</h2>
-  <div class="filebar"><span class="name" id="wrongName"></span></div>
+<dialog class="popup wrong" id="wrongDialog" aria-labelledby="wrongTitle">
+  <button class="popx" id="wrongClose" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+  <h2 id="wrongTitle" tabindex="-1" autofocus>Whoops! Wrong file!</h2>
+  <div class="filebar">
+    <span class="name" id="wrongName"></span>
+    <button class="filex" id="wrongRemove" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
+  </div>
   <div class="msgbox">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
 </dialog>
 
@@ -342,7 +354,13 @@
     // Placeholder until the My Project screen exists: the bar slides, then we return home.
     setTimeout(function () { progress.classList.remove('on'); }, 4500);
   });
-  // The wrong-file popup has no button in his sketch: click outside it (or press Esc) to close.
+  // Wrong-file popup: the X in its corner closes it; the X on the orange bar removes the file and opens the picker.
+  document.getElementById('wrongClose').addEventListener('click', function () { wrongDlg.close(); });
+  document.getElementById('wrongRemove').addEventListener('click', function () {
+    wrongDlg.close();
+    file.value = '';
+    file.click();
+  });
   wrongDlg.addEventListener('click', function (e) { if (e.target === wrongDlg) wrongDlg.close(); });
   promptDlg.addEventListener('click', function (e) { if (e.target === promptDlg) promptDlg.close(); });
   drop.addEventListener('click', function () { file.click(); });
