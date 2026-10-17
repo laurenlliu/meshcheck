@@ -348,12 +348,13 @@
       showWrong(f.name);      // if the prompt is open, it stays underneath
       return;
     }
-    if (wrongDlg.open) wrongDlg.close();
     if (!promptDlg.open) {    // new upload: start the prompt fresh
       partInfo.value = '';
       promptDlg.showModal();
     }
     setFile(f.name);          // adding or replacing a file keeps what was typed
+    // Same size and spot as the Whoops popup, so it turns into the prompt in place.
+    if (wrongDlg.open) wrongDlg.close();
   }
   document.getElementById('removeFile').addEventListener('click', function () { setFile(''); });
   addBtn.addEventListener('click', function () { file.click(); });
