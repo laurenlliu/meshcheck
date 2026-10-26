@@ -527,6 +527,7 @@
         <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
       </details>
       <div class="rowbtns">
+        <button class="btn small" id="autoFixBtn" type="button">Fix it for me</button>
         <button class="btn small" id="orientBtn" type="button">Best orientation</button>
         <button class="btn small alt" id="fixBtn" type="button">Download fixed STL</button>
         <button class="btn small alt" id="reportBtn" type="button">Download report</button>
@@ -918,15 +919,43 @@
     custom: { name: 'Custom size…', bed: null }
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
-  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45 };
+  var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
+  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20 };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
   function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} }
+
+  /* what the user says the part is for -> tips (these never change the score) */
+  function purposeTips(text, material) {
+    var t = (text || '').toLowerCase(), tips = [], load = false;
+    function has(re) { return re.test(t); }
+    if (has(/\b(hold|holds|holding|support|load|bear|bracket|mount|hook|hinge|gear|axle|shaft|structural|clip|strong|tool|handle|lever|pressure|weight|carry|stand|bike|motor)\w*/)) {
+      load = true;
+      tips.push({ title: 'Built to carry a load', text: 'Layers are the weak direction of a 3D print: it snaps along layer lines. Turn the part so the main force runs along the layers, not across them. Use walls of at least 2 mm (4 perimeters), 30 to 50% infill, and round off sharp inside corners where cracks start.' });
+    }
+    if (has(/\b(water|waterproof|liquid|food|drink|cup|bottle|vase|pot|seal|leak|plant|fluid|tank)\w*/)) {
+      tips.push({ title: 'Holds liquid or touches food', text: 'The model must be completely closed with no holes. Use walls of at least 1.6 mm, 100% perimeters or extra top layers, and PETG over PLA. Printed plastic is slightly porous and layer lines trap bacteria, so use food-safe filament and a food-safe sealant for anything you eat or drink from.' });
+    }
+    if (has(/\b(heat|hot|car|outdoor|sun|oven|engine|dashboard|summer|warm|kitchen|dishwasher|garden)\w*/) && material === 'PLA') {
+      tips.push({ title: 'Heat or sun exposure', text: 'PLA softens at about 55 to 60 °C, which a parked car or direct sun can reach. Choose PETG (around 75 °C) or ABS/ASA (around 95 °C) for this part.' });
+    }
+    if (has(/\b(hinge|gear|bearing|moving|slide|sliding|rotate|spin|assembly|fit|fits|snap|thread|screw|bolt|nut|pin|lid|interlock|press|joint|socket)\w*/)) {
+      tips.push({ title: 'Parts that move or fit together', text: 'Leave a gap of 0.2 to 0.4 mm between parts that must move or slide. Printers make holes slightly too small and pegs slightly too big, so add about 0.2 mm to holes. Print a small test piece before the full part.' });
+    }
+    if (has(/\b(flex|bend|rubber|grip|soft|squish|gasket|bumper|stretch)\w*/) && material !== 'TPU') {
+      tips.push({ title: 'Needs to flex', text: 'Pick TPU (flexible filament) for a part that bends or grips. Print slowly, with direct-drive extruders working best.' });
+    }
+    if (has(/\b(decor|display|figurine|statue|toy|art|sculpt|miniature|ornament|cosplay|prop)\w*/)) {
+      tips.push({ title: 'Looks matter most', text: 'Use thin layers (0.1 mm or less), turn the best-looking face away from supports, and think about a resin printer for fine detail. Sanding and priming hide layer lines.' });
+    }
+    return { tips: tips, load: load };
+  }
 
   /* ---------- checking the mesh ----------
      m is the model after the viewer centered it and put it on the plate. `o.perMm` is how many mesh units equal 1 millimeter. */
   function analyze(m, n, o) {
-    var mmU = o.perMm || 1, noz = o.nozzle || 0.4, thinThr = 3 * noz, uname = o.uname || 'millimeters';
-    var res = { issues: [], metrics: {}, w: null, s: null, anchors: {}, n: n };
+    var resin = o.material === 'Resin', mmU = o.perMm || 1, noz = resin ? 0.2 : (o.nozzle || 0.4), thinThr = resin ? 0.8 : 3 * noz, uname = o.uname || 'millimeters';
+    var featName = resin ? 'resin printer' : noz + ' mm nozzle';
+    var res = { issues: [], tips: [], metrics: {}, w: null, s: null, anchors: {}, n: n, resin: resin, heatMax: thinThr * 3 };
     var i, k, t, e, q, oo;
     function centroid(t) { var q = t * 9; return [(m[q] + m[q + 3] + m[q + 6]) / 3, (m[q + 1] + m[q + 4] + m[q + 7]) / 3, (m[q + 2] + m[q + 5] + m[q + 8]) / 3]; }
     function spot(list) {   // a real triangle near the middle of the problem area
@@ -941,16 +970,18 @@
       res.issues.push({ id: id, kind: kind, color: color, title: title, short: short, text: text, fix: fix, tris: tris || [], count: tris ? tris.length : 0, anchor: tris && tris.length ? spot(tris) : null });
     }
     function r1(x) { return Math.round(x * 10) / 10; }
+    function r2(x) { return Math.round(x * 100) / 100; }
 
     // basic numbers: face areas, directions, volume, size
-    var area = new Float32Array(n), nz = new Float32Array(n), total = 0, vol = 0;
+    var area = new Float32Array(n), nxA = new Float32Array(n), nyA = new Float32Array(n), nz = new Float32Array(n), tv = new Float32Array(n), total = 0, vol = 0;
     var minx = 1e30, miny = 1e30, maxx = -1e30, maxy = -1e30, zmax = 0;
     for (i = 0; i < n; i++) {
       oo = i * 9;
       var ax0 = m[oo], ay0 = m[oo + 1], az0 = m[oo + 2], ux = m[oo + 3] - ax0, uy = m[oo + 4] - ay0, uz = m[oo + 5] - az0, wx = m[oo + 6] - ax0, wy = m[oo + 7] - ay0, wz = m[oo + 8] - az0;
       var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz);
-      area[i] = len / 2; nz[i] = len > 1e-12 ? cz / len : 0; total += area[i];
-      vol += (ax0 * (m[oo + 4] * m[oo + 8] - m[oo + 5] * m[oo + 7]) - ay0 * (m[oo + 3] * m[oo + 8] - m[oo + 5] * m[oo + 6]) + az0 * (m[oo + 3] * m[oo + 7] - m[oo + 4] * m[oo + 6])) / 6;
+      area[i] = len / 2; if (len > 1e-12) { nxA[i] = cx / len; nyA[i] = cy / len; nz[i] = cz / len; } total += area[i];
+      tv[i] = (ax0 * (m[oo + 4] * m[oo + 8] - m[oo + 5] * m[oo + 7]) - ay0 * (m[oo + 3] * m[oo + 8] - m[oo + 5] * m[oo + 6]) + az0 * (m[oo + 3] * m[oo + 7] - m[oo + 4] * m[oo + 6])) / 6;
+      vol += tv[i];
     }
     for (i = 0; i < n * 3; i++) {
       var vx = m[i * 3], vy = m[i * 3 + 1], vz = m[i * 3 + 2];
@@ -964,11 +995,13 @@
       key = Math.round(m[i * 3] * 500) + ',' + Math.round(m[i * 3 + 1] * 500) + ',' + Math.round(m[i * 3 + 2] * 500);
       id = ids.get(key); if (id === undefined) { id = nid++; ids.set(key, id); } vid[i] = id;
     }
-    var edges = new Map(), a, b;
+    var edges = new Map(), firstTri = new Map(), knife = [], a, b;
     function ekey(x, y) { return x < y ? x * 67108864 + y : y * 67108864 + x; }
     for (t = 0; t < n; t++) for (e = 0; e < 3; e++) {
       a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
-      key = ekey(a, b); edges.set(key, (edges.get(key) || 0) + 1);
+      key = ekey(a, b); var ec = edges.get(key) || 0; edges.set(key, ec + 1);
+      if (ec === 0) firstTri.set(key, t);
+      else if (ec === 1) { var f0 = firstTri.get(key); if (area[t] > 0 && area[f0] > 0 && nxA[t] * nxA[f0] + nyA[t] * nyA[f0] + nz[t] * nz[f0] < -0.866) knife.push(t, f0); }
     }
     var open = 0, multi = 0, holeTris = [], multiTris = [];
     edges.forEach(function (c) { if (c === 1) open++; else if (c > 2) multi++; });
@@ -984,7 +1017,7 @@
     }
     var closed = !open && !multi;
     var flipN = closed && vol < 0 ? -1 : 1;   // an inside-out model: judge it as if its faces were turned the right way
-    if (flipN < 0) for (i = 0; i < n; i++) nz[i] = -nz[i];
+    if (flipN < 0) for (i = 0; i < n; i++) { nz[i] = -nz[i]; nxA[i] = -nxA[i]; nyA[i] = -nyA[i]; }
 
     // duplicate and zero-size faces
     var degen = [], seen = new Set(), dup = [], degenEps = 1e-9 * dimMax * dimMax;
@@ -999,31 +1032,27 @@
     if (open) {
       add('holes', 'err', 1, 'Holes in the model', 'Holes in the surface',
         'The surface has ' + open + ' open edge' + (open === 1 ? '' : 's') + ', which means there are gaps in the model (it is not watertight). A slicer may fill them wrongly, leave parts out, or fail.',
-        'Repair the mesh before printing. In Fusion 360 or Onshape, export the solid body again. In Blender, use Edit Mode > Select > Select All by Trait > Non Manifold, then Mesh > Clean Up > Fill Holes. Windows 3D Builder and Meshmixer also have an automatic repair.', holeTris);
+        'Press “Fix it for me” to close the holes automatically. Or repair it in your modeling program: in Blender use Select All by Trait > Non Manifold, then Mesh > Clean Up > Fill Holes. Windows 3D Builder and Meshmixer also repair automatically.', holeTris);
     }
     if (multi) {
       add('overlap', 'err', 1, 'Overlapping geometry', 'Faces overlap',
         multi + ' edge' + (multi === 1 ? ' is' : 's are') + ' shared by more than two faces, so the model is not one clean solid (it is non-manifold). Slicers may misread which parts are inside.',
-        'Merge overlapping bodies into one solid (a Boolean union or "Combine" in your CAD program) and export again. Delete any hidden duplicate bodies.', multiTris);
+        'Merge overlapping bodies into one solid (a Boolean union or “Combine” in your CAD program) and export again. Delete any hidden duplicate bodies.', multiTris);
     }
-    // 2) faces pointing inward
     if (closed && vol < 0) {
       add('inverted', 'err', 1, 'Model is inside out', 'Faces point inward',
         'Every face of this model points inward, so a slicer may think the inside is the outside and print nothing, or print it hollow.',
-        'Click "Download fixed STL" to flip every face. In Blender use Mesh > Normals > Recalculate Outside.', null);
+        'Press “Fix it for me” to flip every face. In Blender use Mesh > Normals > Recalculate Outside.', null);
     }
-    // 3) tiny, duplicate and zero-size faces
     if (degen.length || dup.length) {
-      var junk = degen.concat(dup);
       add('junk', 'warn', 1, 'Duplicate or empty faces', 'Duplicate or empty faces',
         'There are ' + degen.length + ' zero-size and ' + dup.length + ' duplicated faces. They add no shape but can confuse slicers and make the file larger.',
-        'Click "Download fixed STL" to remove them, or use Remove Duplicates / Merge by Distance in your modeling tool.', junk);
+        'Press “Fix it for me” to remove them, or use Remove Duplicates / Merge by Distance in your modeling tool.', degen.concat(dup));
     }
 
     // sizes in millimeters
     var X = sx / mmU, Y = sy / mmU, Z = zmax / mmU, volMm = Math.abs(vol) / (mmU * mmU * mmU), areaMm = total / (mmU * mmU);
     res.metrics = { x: X, y: Y, z: Z, tris: n, volume: volMm, area: areaMm };
-    // 4) fit on the printer
     var bed = o.bed || [220, 220, 250];
     if (X <= bed[0] + 1e-6 && Y <= bed[1] + 1e-6 && Z <= bed[2] + 1e-6) res.metrics.fits = 'yes';
     else if (Y <= bed[0] && X <= bed[1] && Z <= bed[2]) {
@@ -1038,9 +1067,20 @@
         'Scale the model down, cut it into pieces that fit, or choose a larger printer in Print settings. If the numbers look wrong, change the units.', null);
     }
 
-    // 5) overhangs (faces tilted past the chosen angle with a gap underneath)
+    // separate pieces, found before the ray tests so we can tell "another part" from "the same part"
+    var par = new Int32Array(nid); for (i = 0; i < nid; i++) par[i] = i;
+    function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    for (t = 0; t < n; t++) { var r0 = find(vid[t * 3]), r1x = find(vid[t * 3 + 1]); par[r1x] = r0; par[find(vid[t * 3 + 2])] = find(r0); }
+    var comp = new Int32Array(n), box = new Map(), root;
+    for (t = 0; t < n; t++) {
+      root = find(vid[t * 3]); comp[t] = root; var bb = box.get(root);
+      if (!bb) { bb = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], tris: [], vol: 0 }; box.set(root, bb); }
+      bb.tris.push(t); bb.vol += tv[t] * flipN;
+      for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], axx = k % 3; if (cv < bb.lo[axx]) bb.lo[axx] = cv; if (cv > bb.hi[axx]) bb.hi[axx] = cv; }
+    }
+    // 2) overhangs and long flat bridges
     var angle = o.overhang || 45, limit = -Math.sin(angle * Math.PI / 180), cand = [], gcell = 48, grid = [];
-    for (t = 0; t < n; t++) if (nz[t] < limit && area[t] > 0) cand.push(t);
+    for (t = 0; t < n; t++) if (nz[t] < limit && area[t] > 0 && !(closed && flipN > 0 && box.get(comp[t]).vol < 0)) cand.push(t);
     if (cand.length) {
       for (i = 0; i < gcell * gcell; i++) grid.push(null);
       for (t = 0; t < n; t++) {
@@ -1053,7 +1093,7 @@
       var over = [], overArea = 0, gapTol = 0.6 * mmU * (noz / 0.4);
       cand.forEach(function (t) {
         var c = centroid(t), px = c[0], py = c[1], pz = c[2], best = 0;
-        if (pz < gapTol) return;                           // sitting on the plate
+        if (pz < gapTol) return;
         var list = grid[Math.floor((py - miny) / sy * (gcell - 1)) * gcell + Math.floor((px - minx) / sx * (gcell - 1))] || [];
         for (var li = 0; li < list.length; li++) {
           var u = list[li]; if (u === t) continue;
@@ -1072,10 +1112,31 @@
         add('overhang', pct >= 10 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
           'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
           'Turn the model so the flat side faces down (try the Best orientation button), add supports in your slicer, or redesign the overhang as a 45° slope or a chamfer.', over);
+        // bridges: flat undersides joined together; how wide a flat span hangs in the air?
+        var flatOver = over.filter(function (t) { return nz[t] < -0.99; });
+        if (flatOver.length) {
+          var par2 = new Map();
+          var f2 = function (x) { while (par2.get(x) !== x) { par2.set(x, par2.get(par2.get(x))); x = par2.get(x); } return x; };
+          flatOver.forEach(function (t) { for (var kk = 0; kk < 3; kk++) if (!par2.has(vid[t * 3 + kk])) par2.set(vid[t * 3 + kk], vid[t * 3 + kk]); });
+          flatOver.forEach(function (t) { var r0 = f2(vid[t * 3]); for (var kk = 1; kk < 3; kk++) par2.set(f2(vid[t * 3 + kk]), r0); });
+          var cl = new Map();
+          flatOver.forEach(function (t) {
+            var r = f2(vid[t * 3]), cc = cl.get(r); if (!cc) { cc = { lo: [1e30, 1e30], hi: [-1e30, -1e30], zl: 1e30, zh: -1e30, tris: [] }; cl.set(r, cc); }
+            cc.tris.push(t);
+            for (var kk = 0; kk < 3; kk++) { var px2 = m[t * 9 + kk * 3], py2 = m[t * 9 + kk * 3 + 1], pz2 = m[t * 9 + kk * 3 + 2]; if (pz2 < cc.zl) cc.zl = pz2; if (pz2 > cc.zh) cc.zh = pz2; if (px2 < cc.lo[0]) cc.lo[0] = px2; if (px2 > cc.hi[0]) cc.hi[0] = px2; if (py2 < cc.lo[1]) cc.lo[1] = py2; if (py2 > cc.hi[1]) cc.hi[1] = py2; }
+          });
+          var spanMax = 0, bridgeTris = [];
+          cl.forEach(function (cc) { var sp = Math.max(cc.hi[0] - cc.lo[0], cc.hi[1] - cc.lo[1]) / mmU; if (sp >= 5 && cc.zh - cc.zl < 0.5 * mmU) { spanMax = Math.max(spanMax, sp); bridgeTris = bridgeTris.concat(cc.tris); } });
+          if (bridgeTris.length) {
+            add('bridge', spanMax >= 10 ? 'warn' : 'info', 2, 'Long flat bridge', 'Flat span in mid-air',
+              'A flat underside about ' + r1(spanMax) + ' mm wide hangs in the air with nothing under it. Printers can usually bridge about 5 to 10 mm cleanly. Longer spans sag in the middle and leave a rough, stringy bottom.',
+              'Add a support pillar or rib under it, split the span with a column, or round it into an arch. You can also turn the model so the span stands upright.', bridgeTris);
+          }
+        }
       }
     }
 
-    // 6) bed contact and stability
+    // 3) bed contact, resin peel force, stability
     var contactTris = [], contact = 0, tol = 0.05 * mmU;
     for (t = 0; t < n; t++) {
       oo = t * 9;
@@ -1093,6 +1154,11 @@
           'Only about ' + r1(contactMm) + ' mm² of the model touches the bed. Prints with a tiny base can pop off the bed halfway through.',
           'Add a brim in your slicer, make the base wider, or turn the model onto a larger flat side.', contactTris);
       }
+      if (resin && contactMm > 1500) {
+        add('peel', 'warn', 2, 'Large flat face on the plate', 'Big flat base is hard to peel',
+          'About ' + r1(contactMm / 100) + ' cm² of the model lies flat on the build plate. On a resin printer, every layer has to peel off the film, and a large flat layer pulls hard and can fail or warp.',
+          'Tilt the model 30 to 45° so each layer is a smaller slice, and add supports. Most resin slicers have an auto-orient tool.', contactTris);
+      }
       var minSide = Math.min(X, Y);
       if (minSide > 0 && Z / minSide > 5) {
         add('tall', Z / minSide > 8 ? 'warn' : 'info', 2, 'Tall and narrow', 'Tall and narrow',
@@ -1101,9 +1167,37 @@
       }
     }
 
-    // 7) thin walls, tiny details and narrow gaps. From a sample of surface spots we shoot a short ray into the model
-    // (how thick is it here?) and one out of it (how wide is the gap?).
-    var thr = thinThr * mmU, nozzle = noz * mmU;
+    // 4) sharp points and knife edges (closed models only)
+    if (closed) {
+      var angSum = new Float32Array(nid), vcnt = new Uint16Array(nid), sharp = [], minAng = 99;
+      for (t = 0; t < n; t++) {
+        oo = t * 9;
+        for (k = 0; k < 3; k++) {
+          var p0 = oo + k * 3, p1 = oo + ((k + 1) % 3) * 3, p2 = oo + ((k + 2) % 3) * 3;
+          var d1x = m[p1] - m[p0], d1y = m[p1 + 1] - m[p0 + 1], d1z = m[p1 + 2] - m[p0 + 2], d2x = m[p2] - m[p0], d2y = m[p2 + 1] - m[p0 + 1], d2z = m[p2 + 2] - m[p0 + 2];
+          var l1b = Math.sqrt(d1x * d1x + d1y * d1y + d1z * d1z), l2b = Math.sqrt(d2x * d2x + d2y * d2y + d2z * d2z);
+          if (l1b < 1e-12 || l2b < 1e-12) continue;
+          var cs2 = (d1x * d2x + d1y * d2y + d1z * d2z) / (l1b * l2b);
+          angSum[vid[t * 3 + k]] += Math.acos(Math.max(-1, Math.min(1, cs2))); vcnt[vid[t * 3 + k]]++;
+        }
+      }
+      var flagV = new Uint8Array(nid), anyV = false;
+      for (i = 0; i < nid; i++) if (vcnt[i] >= 3 && angSum[i] < 1.571) { flagV[i] = 1; anyV = true; minAng = Math.min(minAng, angSum[i]); }
+      if (anyV) for (t = 0; t < n; t++) if (flagV[vid[t * 3]] || flagV[vid[t * 3 + 1]] || flagV[vid[t * 3 + 2]]) sharp.push(t);
+      if (sharp.length) {
+        add('sharp', minAng < 1.05 ? 'warn' : 'info', 1, 'Needle-sharp points', 'Very sharp point',
+          'The model has a very sharp tip, shown in red. A printer can’t make a point finer than its nozzle, so the tip will print blunt, and a thin spike can snap off.',
+          'Round the tip with a small fillet (about ' + r1(noz) + ' mm or more), or cut it off flat.', sharp);
+      }
+      if (knife.length) {
+        add('knife', 'warn', 1, 'Razor-thin edges', 'Razor-thin edge',
+          'Some edges fold back on themselves into a blade (' + Math.round(knife.length / 2) + ' spot' + (knife.length === 2 ? '' : 's') + '), shown in red. Edges thinner than the nozzle can’t be printed and may be dropped by the slicer.',
+          'Thicken the edge to at least ' + r1(noz * 2) + ' mm, or round it off in your modeling tool.', knife);
+      }
+    }
+
+    // 5) thin walls, tiny details, narrow gaps, hole sizes and close parts (ray tests on a sample of the surface)
+    var thr = thinThr * mmU, nozzle = noz * mmU, thickMax = thr * 3, holeMax = (resin ? 2 : 4) * mmU, gapMaxD = Math.max(nozzle, holeMax);
     var cs = Math.max(thr * 1.5, dimMax / 40), gnx = Math.ceil(sx / cs) + 2, gny = Math.ceil(sy / cs) + 2, g3 = new Map();
     for (t = 0; t < n; t++) {
       oo = t * 9;
@@ -1142,7 +1236,8 @@
       }
       return bestT >= 0 ? { d: best, t: bestT } : null;
     }
-    var step = Math.max(1, Math.floor(n / 4000)), tested = 0, thin = [], tiny = [], gaps = [], pT = [], pY = [], pG = [], thinMin = 1e30, tinyMin = 1e30, gapMin = 1e30;
+    var step = Math.max(1, Math.floor(n / 6000)), tested = 0, thin = [], tiny = [], gaps = [], pT = [], pY = [], pG = [], thinMin = 1e30, tinyMin = 1e30, gapMin = 1e30;
+    var closeA = [], closeB = [], closeMin = 1e30, holesA = [], holesB = [], holeLo = 1e30, holeHi = 0, thick = new Float32Array(n).fill(99), under2 = [], p2 = [];
     for (t = 0; t < n; t += step) {
       if (area[t] <= degenEps) continue;
       oo = t * 9;
@@ -1151,50 +1246,80 @@
       nx = nx / nl * flipN; ny = ny / nl * flipN; nzz = nzz / nl * flipN;
       var c0 = centroid(t), off = nozzle * 0.02;
       tested++;
-      var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thr);
-      if (hit && hit.d + off <= thr) {
-        var th = (hit.d + off) / mmU;
-        if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); }
+      var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thickMax);   // into the model: wall thickness
+      if (hit) {
+        var th = (hit.d + off) / mmU; thick[t] = th;
+        if (th <= thinThr) { if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); } }
+        if (th < 2) { under2.push(t); p2.push(hit.t); }
       }
-      var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, nozzle);
-      if (gap && gap.d + off < nozzle) { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, (gap.d + off) / mmU); }
+      var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, gapMaxD);          // out of the model: gap width
+      if (gap) {
+        var gd = (gap.d + off) / mmU, hitSame = comp[gap.t] === comp[t];
+        if (gd < noz) {
+          if (!hitSame) { if (gd > 0.02) { closeA.push(t); closeB.push(gap.t); closeMin = Math.min(closeMin, gd); } }
+          else { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, gd); }
+        } else if (gd <= holeMax / mmU && hitSame && nxA[t] * nxA[gap.t] + nyA[t] * nyA[gap.t] + nz[t] * nz[gap.t] < -0.85) {
+          holesA.push(t); holesB.push(gap.t); holeLo = Math.min(holeLo, gd); holeHi = Math.max(holeHi, gd);
+        }
+      }
     }
-    // separate pieces: tiny loose specks (under 1 mm) and ordinary extra bodies
-    var par = new Int32Array(nid); for (i = 0; i < nid; i++) par[i] = i;
-    function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
-    for (t = 0; t < n; t++) { var r0 = find(vid[t * 3]), r1x = find(vid[t * 3 + 1]); par[r1x] = r0; par[find(vid[t * 3 + 2])] = find(r0); }
-    var box = new Map(), root;
-    for (t = 0; t < n; t++) {
-      root = find(vid[t * 3]); var bb = box.get(root);
-      if (!bb) { bb = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], tris: [] }; box.set(root, bb); }
-      bb.tris.push(t);
-      for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], axx = k % 3; if (cv < bb.lo[axx]) bb.lo[axx] = cv; if (cv > bb.hi[axx]) bb.hi[axx] = cv; }
-    }
-    var specks = [], bodies = 0;
+    if (step > 1) for (t = 0; t < n; t++) if (t % step) thick[t] = thick[t - (t % step)];
+    res.thick = thick;
+
+    // pieces: tiny loose specks (under 1 mm), sealed hollow pockets, and ordinary extra bodies
+    var specks = [], bodies = 0, cavTris = [], cavVol = 0, hasSolid = false;
+    box.forEach(function (bb) { if (bb.vol > 0) hasSolid = true; });
     box.forEach(function (bb) {
-      if (Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]) < 1 * mmU) specks = specks.concat(bb.tris); else bodies++;
+      var ext = Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]);
+      if (ext < 1 * mmU) specks = specks.concat(bb.tris);
+      else if (closed && hasSolid && flipN > 0 && bb.vol < 0) { cavTris = cavTris.concat(bb.tris); cavVol += -bb.vol; }
+      else bodies++;
     });
     res.metrics.bodies = bodies;
 
     var enough = function (list) { return list.length >= 3 && list.length >= tested * 0.015; };
     var smallParts = [], smallTris = [];
-    if (enough(tiny)) { smallParts.push('features only about ' + Math.max(0.05, Math.round(tinyMin * 100) / 100) + ' mm thick'); smallTris = smallTris.concat(tiny, pY); }
-    if (enough(gaps)) { smallParts.push('gaps only about ' + Math.max(0.05, Math.round(gapMin * 100) / 100) + ' mm wide'); smallTris = smallTris.concat(gaps, pG); }
+    if (enough(tiny)) { smallParts.push('features only about ' + Math.max(0.05, r2(tinyMin)) + ' mm thick'); smallTris = smallTris.concat(tiny, pY); }
+    if (enough(gaps)) { smallParts.push('gaps only about ' + Math.max(0.05, r2(gapMin)) + ' mm wide'); smallTris = smallTris.concat(gaps, pG); }
     if (specks.length) { smallParts.push('tiny loose pieces'); smallTris = smallTris.concat(specks); }
     if (smallParts.length) {
       add('small', 'warn', 1, 'Details too small to print', 'Details too small to print',
-        'This model has ' + smallParts.join(', ') + ', shown in red. A ' + noz + ' mm nozzle can’t print details that small, so they may be missing, merged together or left floating.',
-        'Make small details at least ' + noz + ' mm (ideally ' + r1(noz * 2) + ' mm), widen narrow gaps, delete loose specks, or pick a smaller nozzle in Print settings.', smallTris);
+        'This model has ' + smallParts.join(', ') + ', shown in red. A ' + featName + ' can’t print details that small, so they may be missing, merged together or left floating.',
+        'Make small details at least ' + noz + ' mm (ideally ' + r1(noz * 2) + ' mm), widen narrow gaps, delete loose specks, or pick a finer printer in Print settings.', smallTris);
     }
     if (enough(thin)) {
       add('thin', 'warn', 1, 'Thin walls', 'Thin walls may not print',
-        'Some walls are thinner than about ' + r1(thinThr) + ' mm (the thinnest is around ' + Math.max(0.1, Math.round(thinMin * 10) / 10) + ' mm), shown in red. Thin walls can snap or print with gaps.',
-        'Make them at least ' + r1(thinThr) + ' mm thick, which is about three lines of plastic from a ' + noz + ' mm nozzle. In your CAD program, increase the wall or shell thickness.', thin.concat(pT));
+        'Some walls are thinner than about ' + r1(thinThr) + ' mm (the thinnest is around ' + Math.max(0.1, r1(thinMin)) + ' mm), shown in red. Thin walls can snap or print with gaps.',
+        'Make them at least ' + r1(thinThr) + ' mm thick' + (resin ? '' : ', about three lines of plastic from a ' + noz + ' mm nozzle') + '. In your CAD program, increase the wall or shell thickness. Turn on the Thickness view to see every wall.', thin.concat(pT));
+    }
+    if (closeA.length >= 3 && closeA.length >= tested * 0.01) {
+      add('closeparts', 'warn', 1, 'Parts too close together', 'Parts almost touching',
+        'Some separate parts sit only about ' + Math.max(0.05, r2(closeMin)) + ' mm apart, shown in red. Printed plastic spreads a little, so parts this close can fuse into one lump.',
+        'Leave at least 0.2 to 0.4 mm between parts that must stay separate (0.3 mm or more for parts that must move), or let them touch on purpose and join them in your CAD program.', closeA.concat(closeB));
+    }
+    if (holesA.length >= 6 && holesA.length >= tested * 0.02) {
+      add('smallholes', 'info', 2, 'Small holes or slots', 'Small holes may print too tight',
+        'The model has narrow holes or slots (about ' + r1(holeLo) + ' to ' + r1(holeHi) + ' mm across), shown in yellow. 3D printers make holes slightly smaller than designed, so a bolt or pin that fits in the model may not fit in the print.',
+        'Add about 0.2 mm to the diameter of any hole something must fit into (0.3 mm for tight fits). Small holes under about 2 mm may need drilling out afterwards.', holesA.concat(holesB));
+    }
+    if (cavTris.length) {
+      add('cavity', resin ? 'warn' : 'info', 2, 'Sealed hollow inside', 'Sealed hollow pocket',
+        'The model has a closed empty pocket inside it (about ' + r1(cavVol / (mmU * mmU * mmU) / 1000) + ' cm³). ' + (resin ? 'On a resin printer, liquid resin gets trapped inside, and suction can crack the print or pull it off the plate.' : 'A slicer will print around it, which is fine, but you can’t get supports or loose powder out of it.'),
+        resin ? 'Add two small drain holes (about 2 to 3 mm) at the lowest and highest points of the pocket, or make the model solid.' : 'If the pocket is meant to be hollow, you can leave it. Otherwise fill it in your CAD program.', cavTris);
     }
     if (bodies > 1) {
       add('bodies', 'info', 2, 'Several separate parts', 'Several separate parts',
         'The file contains ' + bodies + ' parts that don’t touch each other. That is fine for printing a set, but double check it is what you meant.',
         'If it should be one part, join them in your CAD program. If they are meant to be separate, leave them and print them together.', null);
+    }
+
+    // tips from what the part is for
+    var pu = purposeTips(o.purpose, o.material);
+    res.tips = pu.tips;
+    if (pu.load && under2.length >= 3 && under2.length >= tested * 0.1) {
+      add('loadthin', 'warn', 1, 'Thin walls for a load-bearing part', 'Walls thin for a strong part',
+        'You said this part carries a load, but about ' + Math.round(under2.length / Math.max(1, tested) * 100) + '% of the sampled surface is under 2 mm thick, shown in red. Thin walls are the first thing to crack under load.',
+        'Thicken walls to at least 2 mm where the force goes, add ribs or fillets at corners, and use more perimeters in your slicer.', under2.concat(p2));
     }
 
     // ordering, boxes, score
@@ -1207,11 +1332,19 @@
     res.verdict = errs ? 'Not ready to print' : res.score >= 90 ? 'Ready to print' : 'Almost ready';
 
     // estimates
-    var shell = Math.min(volMm, areaMm * 0.9), mat = o.density || 1.24;
-    var plastic = shell + Math.max(0, volMm - shell) * 0.2;          // 2 perimeters, 4 top and bottom layers, 20% infill
-    res.metrics.grams = plastic / 1000 * mat;
-    var flow = 5 * (noz / 0.4) * (noz / 0.4) * ((o.layer || 0.2) / 0.2);
-    res.metrics.minutes = plastic / flow * 1.15 / 60;
+    var mat = o.density || 1.24, plastic;
+    if (resin) {
+      plastic = cavTris.length ? volMm : Math.min(volMm, areaMm * 2 + 50);   // resin models are usually printed hollow
+      res.metrics.grams = plastic / 1000 * mat;
+      res.metrics.minutes = (Z / 0.05) * 9 / 60 + 6;                         // roughly 9 s a layer plus warm-up
+    } else {
+      var shell = Math.min(volMm, areaMm * 0.9);
+      plastic = shell + Math.max(0, volMm - shell) * 0.2;                     // 2 perimeters, 4 top and bottom layers, 20% infill
+      res.metrics.grams = plastic / 1000 * mat;
+      var flow = 5 * (noz / 0.4) * (noz / 0.4) * ((o.layer || 0.2) / 0.2);
+      res.metrics.minutes = plastic / flow * 1.15 / 60;
+    }
+    res.metrics.cost = res.metrics.grams / 1000 * (o.price || 20);
     return res;
   }
 
@@ -1383,7 +1516,7 @@
 
   function cur() { return projects[curP] || null; }
   function optsFor(p) {
-    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer };
+    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, purpose: p.info || '' };
   }
   function toast(msg) {
     var t = $('toast'); t.textContent = msg; t.hidden = false;
@@ -1442,6 +1575,7 @@
     var dl = $('infoList'); dl.innerHTML = '';
     rows.forEach(function (r) { var dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd); });
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
+    $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
     $('fixBtn').disabled = !p.mesh;
   }
   function focusIssue(id) {
@@ -1477,6 +1611,7 @@
       if (tok !== runToken || cur() !== p) return;
       p.res = analyze(p.norm, viewer.n, optsFor(p));
       applyResult(p); renderReport(p); setBubble();
+      if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
   }
   function recheck() { projects.forEach(function (p) { p.res = null; }); refreshProject(); }
@@ -1600,34 +1735,149 @@
     toast('I turned the model to cut down on overhangs. Press the button again to undo.');
   });
 
+  // repair: weld, drop junk, fix winding, fill holes. src is the file's mesh (any units); specks = size under which loose pieces are dropped.
+  function repairMesh(src, specks) {
+    var n = Math.floor(src.length / 9), i, k, t;
+    var lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30];
+    for (i = 0; i < n * 3; i++) for (k = 0; k < 3; k++) { var v = src[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    var diag = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, q = diag * 2.5e-5;
+    var map = new Map(), pos = [], idx = new Int32Array(n * 3);
+    for (i = 0; i < n * 3; i++) {
+      var key = Math.round(src[i * 3] / q) + ',' + Math.round(src[i * 3 + 1] / q) + ',' + Math.round(src[i * 3 + 2] / q), id = map.get(key);
+      if (id === undefined) { id = pos.length / 3; map.set(key, id); pos.push(src[i * 3], src[i * 3 + 1], src[i * 3 + 2]); }
+      idx[i] = id;
+    }
+    var stats = { junk: 0, specks: 0, flipped: 0, holes: 0, filled: 0, left: 0 };
+    // drop empty and duplicate triangles
+    var tris = [], seen = new Set();
+    for (t = 0; t < n; t++) {
+      var a = idx[t * 3], b = idx[t * 3 + 1], c = idx[t * 3 + 2];
+      if (a === b || b === c || a === c) { stats.junk++; continue; }
+      var ax = pos[a * 3], ay = pos[a * 3 + 1], az = pos[a * 3 + 2], ux = pos[b * 3] - ax, uy = pos[b * 3 + 1] - ay, uz = pos[b * 3 + 2] - az, wx = pos[c * 3] - ax, wy = pos[c * 3 + 1] - ay, wz = pos[c * 3 + 2] - az;
+      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx;
+      if (cx * cx + cy * cy + cz * cz < 1e-18 * diag * diag * diag * diag) { stats.junk++; continue; }
+      var s3 = [a, b, c].sort(function (x, y) { return x - y; }), kk = s3[0] + '_' + s3[1] + '_' + s3[2];
+      if (seen.has(kk)) { stats.junk++; continue; }
+      seen.add(kk); tris.push([a, b, c]);
+    }
+    // loose specks
+    var nv = pos.length / 3, par = new Int32Array(nv); for (i = 0; i < nv; i++) par[i] = i;
+    function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    tris.forEach(function (T) { par[find(T[1])] = find(T[0]); par[find(T[2])] = find(T[0]); });
+    var cb = new Map();
+    tris.forEach(function (T) {
+      var r = find(T[0]), bb = cb.get(r); if (!bb) { bb = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], n: 0 }; cb.set(r, bb); } bb.n++;
+      T.forEach(function (vi) { for (var d = 0; d < 3; d++) { var x = pos[vi * 3 + d]; if (x < bb.lo[d]) bb.lo[d] = x; if (x > bb.hi[d]) bb.hi[d] = x; } });
+    });
+    if (specks > 0 && cb.size > 1) {
+      var drop = new Set();
+      cb.forEach(function (bb, r) { if (Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]) < specks) drop.add(r); });
+      if (drop.size < cb.size) { var before = tris.length; tris = tris.filter(function (T) { return !drop.has(find(T[0])); }); stats.specks = before - tris.length; }
+    }
+    // consistent winding: walk across shared edges and turn neighbours to agree
+    function ek(x, y) { return x < y ? x * 67108864 + y : y * 67108864 + x; }
+    var emap = new Map();
+    tris.forEach(function (T, ti) { for (var e = 0; e < 3; e++) { var kx = ek(T[e], T[(e + 1) % 3]), l = emap.get(kx); if (l) l.push(ti); else emap.set(kx, [ti]); } });
+    var done = new Uint8Array(tris.length), compOf = new Int32Array(tris.length).fill(-1), ncomp = 0;
+    function dirOf(T, x, y) { for (var e = 0; e < 3; e++) if (T[e] === x && T[(e + 1) % 3] === y) return 1; return -1; }
+    for (var s = 0; s < tris.length; s++) {
+      if (done[s]) continue;
+      var stack = [s]; done[s] = 1; compOf[s] = ncomp;
+      while (stack.length) {
+        var cu = stack.pop(), T = tris[cu];
+        for (var e = 0; e < 3; e++) {
+          var x = T[e], y = T[(e + 1) % 3], l = emap.get(ek(x, y));
+          if (l.length !== 2) continue;
+          var nb = l[0] === cu ? l[1] : l[0]; if (done[nb]) continue;
+          if (dirOf(tris[nb], x, y) === 1) { var N = tris[nb]; tris[nb] = [N[0], N[2], N[1]]; stats.flipped++; }
+          done[nb] = 1; compOf[nb] = ncomp; stack.push(nb);
+        }
+      }
+      ncomp++;
+    }
+    // each piece should have positive volume unless it sits inside another piece (a hollow pocket)
+    var cvol = new Float64Array(ncomp), cbox = [];
+    for (i = 0; i < ncomp; i++) cbox.push({ lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], tris: [] });
+    tris.forEach(function (T, ti) {
+      var c0 = compOf[ti], A = [], d;
+      for (var j = 0; j < 3; j++) { A.push([pos[T[j] * 3], pos[T[j] * 3 + 1], pos[T[j] * 3 + 2]]); for (d = 0; d < 3; d++) { var x = A[j][d]; if (x < cbox[c0].lo[d]) cbox[c0].lo[d] = x; if (x > cbox[c0].hi[d]) cbox[c0].hi[d] = x; } }
+      cvol[c0] += (A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) - A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) + A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0])) / 6;
+      cbox[c0].tris.push(ti);
+    });
+    var totalVol = 0; for (i = 0; i < ncomp; i++) totalVol += cvol[i];
+    for (i = 0; i < ncomp; i++) {
+      if (cvol[i] >= 0) continue;
+      var inside = false;
+      for (var o = 0; o < ncomp; o++) if (o !== i && cvol[o] > 0 && cbox[o].lo[0] <= cbox[i].lo[0] && cbox[o].lo[1] <= cbox[i].lo[1] && cbox[o].lo[2] <= cbox[i].lo[2] && cbox[o].hi[0] >= cbox[i].hi[0] && cbox[o].hi[1] >= cbox[i].hi[1] && cbox[o].hi[2] >= cbox[i].hi[2]) inside = true;
+      if (!inside || totalVol < 0) { cbox[i].tris.forEach(function (ti) { var T = tris[ti]; tris[ti] = [T[0], T[2], T[1]]; }); stats.flipped += cbox[i].tris.length; }
+    }
+    // fill holes: every open edge a->b gets a triangle b->a joined to the middle of its hole
+    var dirE = new Map(), bnd = [];
+    tris.forEach(function (T) { for (var e = 0; e < 3; e++) dirE.set(T[e] * 67108864 + T[(e + 1) % 3], (dirE.get(T[e] * 67108864 + T[(e + 1) % 3]) || 0) + 1); });
+    tris.forEach(function (T) {
+      for (var e = 0; e < 3; e++) { var x = T[e], y = T[(e + 1) % 3]; if (!dirE.get(y * 67108864 + x)) bnd.push([x, y]); }
+    });
+    if (bnd.length && bnd.length < 200000) {
+      var bp = new Map(); function bf(x) { while (bp.get(x) !== x) { bp.set(x, bp.get(bp.get(x))); x = bp.get(x); } return x; }
+      bnd.forEach(function (E) { if (!bp.has(E[0])) bp.set(E[0], E[0]); if (!bp.has(E[1])) bp.set(E[1], E[1]); });
+      bnd.forEach(function (E) { bp.set(bf(E[1]), bf(E[0])); });
+      var loops = new Map();
+      bnd.forEach(function (E) { var r = bf(E[0]), L = loops.get(r); if (!L) { L = { edges: [], vs: new Set() }; loops.set(r, L); } L.edges.push(E); L.vs.add(E[0]); L.vs.add(E[1]); });
+      loops.forEach(function (L) {
+        var mx = 0, my = 0, mz = 0; L.vs.forEach(function (vi) { mx += pos[vi * 3]; my += pos[vi * 3 + 1]; mz += pos[vi * 3 + 2]; });
+        var cnt = L.vs.size, ci = pos.length / 3;
+        pos.push(mx / cnt, my / cnt, mz / cnt); L.edges.forEach(function (E) { tris.push([E[1], E[0], ci]); });
+        stats.holes++;
+      });
+      stats.filled = bnd.length;
+    }
+    // count what is still open
+    var chk = new Map(); tris.forEach(function (T) { for (var e = 0; e < 3; e++) { var kx = ek(T[e], T[(e + 1) % 3]); chk.set(kx, (chk.get(kx) || 0) + 1); } });
+    chk.forEach(function (c) { if (c !== 2) stats.left++; });
+    var out = new Float32Array(tris.length * 9);
+    tris.forEach(function (T, ti) { for (var j = 0; j < 3; j++) for (var d = 0; d < 3; d++) out[ti * 9 + j * 3 + d] = pos[T[j] * 3 + d]; });
+    return { mesh: out, stats: stats };
+  }
+
   // downloads
   function save(blob, name) {
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
   }
   function safeName(p) { return (p.name || 'model').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'model'; }
-  $('fixBtn').addEventListener('click', function () {
-    var p = cur(); if (!p || !p.res) return;
-    var m = p.mesh, n = Math.floor(m.length / 9), flip = !!issueById(p, 'inverted'), keep = [], seen = new Set(), i;
-    for (i = 0; i < n; i++) {
-      var o = i * 9, ux = m[o + 3] - m[o], uy = m[o + 4] - m[o + 1], uz = m[o + 5] - m[o + 2], wx = m[o + 6] - m[o], wy = m[o + 7] - m[o + 1], wz = m[o + 8] - m[o + 2];
-      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx;
-      if (Math.sqrt(cx * cx + cy * cy + cz * cz) < 1e-12) continue;
-      var keys = [0, 3, 6].map(function (k) { return m[o + k] + ',' + m[o + k + 1] + ',' + m[o + k + 2]; }).sort().join('|');
-      if (seen.has(keys)) continue; seen.add(keys); keep.push(i);
-    }
-    var buf = new ArrayBuffer(84 + keep.length * 50), dv = new DataView(buf);
-    new TextEncoder().encodeInto('MeshCheck fixed', new Uint8Array(buf, 0, 80)); dv.setUint32(80, keep.length, true);
-    keep.forEach(function (t, j) {
-      var o = t * 9, v = [[m[o], m[o + 1], m[o + 2]], [m[o + 3], m[o + 4], m[o + 5]], [m[o + 6], m[o + 7], m[o + 8]]];
-      if (flip) v = [v[0], v[2], v[1]];
-      var ux = v[1][0] - v[0][0], uy = v[1][1] - v[0][1], uz = v[1][2] - v[0][2], wx = v[2][0] - v[0][0], wy = v[2][1] - v[0][1], wz = v[2][2] - v[0][2];
+  function stlBlob(m) {
+    var n = Math.floor(m.length / 9), buf = new ArrayBuffer(84 + n * 50), dv = new DataView(buf);
+    new TextEncoder().encodeInto('MeshCheck fixed', new Uint8Array(buf, 0, 80)); dv.setUint32(80, n, true);
+    for (var j = 0; j < n; j++) {
+      var o = j * 9, ux = m[o + 3] - m[o], uy = m[o + 4] - m[o + 1], uz = m[o + 5] - m[o + 2], wx = m[o + 6] - m[o], wy = m[o + 7] - m[o + 1], wz = m[o + 8] - m[o + 2];
       var nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nzv = ux * wy - uy * wx, l = Math.sqrt(nx * nx + ny * ny + nzv * nzv) || 1, q = 84 + j * 50;
       dv.setFloat32(q, nx / l, true); dv.setFloat32(q + 4, ny / l, true); dv.setFloat32(q + 8, nzv / l, true);
-      for (var a = 0; a < 3; a++) for (var b = 0; b < 3; b++) dv.setFloat32(q + 12 + a * 12 + b * 4, v[a][b], true);
-    });
-    save(new Blob([buf], { type: 'model/stl' }), safeName(p) + '-fixed.stl');
-    toast('Saved ' + safeName(p) + '-fixed.stl with ' + (n - keep.length) + ' duplicate or empty face' + (n - keep.length === 1 ? '' : 's') + ' removed' + (flip ? ' and all faces flipped' : '') + '. Holes can’t be filled automatically.');
+      for (var a = 0; a < 9; a++) dv.setFloat32(q + 12 + a * 4, m[o + a], true);
+    }
+    return new Blob([buf], { type: 'model/stl' });
+  }
+  function specksFor(p) { return 1 / MM[p.units || 'mm']; }   // 1 mm in the file's own units
+  function summary(st) {
+    var bits = [];
+    if (st.holes) bits.push('closed ' + st.holes + ' hole' + (st.holes === 1 ? '' : 's'));
+    if (st.junk) bits.push('removed ' + st.junk + ' duplicate or empty face' + (st.junk === 1 ? '' : 's'));
+    if (st.specks) bits.push('deleted ' + st.specks + ' loose speck face' + (st.specks === 1 ? '' : 's'));
+    if (st.flipped) bits.push('turned ' + st.flipped + ' face' + (st.flipped === 1 ? '' : 's') + ' the right way round');
+    return bits;
+  }
+  $('fixBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    var r = repairMesh(p.mesh, specksFor(p)), bits = summary(r.stats);
+    save(stlBlob(r.mesh), safeName(p) + '-fixed.stl');
+    toast('Saved ' + safeName(p) + '-fixed.stl' + (bits.length ? ' (' + bits.join(', ') + ')' : ' (nothing needed fixing)') + '.' + (r.stats.left ? ' Some overlapping geometry still needs fixing in your modeling program.' : ''));
+  });
+  $('autoFixBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    if (p.unfixed) { p.mesh = p.unfixed; p.unfixed = null; p.res = null; refreshProject(); toast('Back to the model from your file.'); return; }
+    var before = p.res.score, r = repairMesh(p.mesh, specksFor(p)), bits = summary(r.stats);
+    if (!bits.length) { toast('I didn’t find anything I can repair automatically. Problems like thin walls or a model that’s too big need a change in your modeling program.'); return; }
+    p.unfixed = p.mesh; p.mesh = r.mesh; p.res = null; p.fixNote = { before: before, bits: bits, left: r.stats.left };
+    refreshProject();
   });
   $('reportBtn').addEventListener('click', function () {
     var p = cur(); if (!p || !p.res) return;
