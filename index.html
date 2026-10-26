@@ -983,6 +983,8 @@
       }
     }
     var closed = !open && !multi;
+    var flipN = closed && vol < 0 ? -1 : 1;   // an inside-out model: judge it as if its faces were turned the right way
+    if (flipN < 0) for (i = 0; i < n; i++) nz[i] = -nz[i];
 
     // duplicate and zero-size faces
     var degen = [], seen = new Set(), dup = [], degenEps = 1e-9 * dimMax * dimMax;
@@ -1146,7 +1148,7 @@
       oo = t * 9;
       var e1x = m[oo + 3] - m[oo], e1y = m[oo + 4] - m[oo + 1], e1z = m[oo + 5] - m[oo + 2], e2x = m[oo + 6] - m[oo], e2y = m[oo + 7] - m[oo + 1], e2z = m[oo + 8] - m[oo + 2];
       var nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nzz = e1x * e2y - e1y * e2x, nl = Math.sqrt(nx * nx + ny * ny + nzz * nzz);
-      nx /= nl; ny /= nl; nzz /= nl;
+      nx = nx / nl * flipN; ny = ny / nl * flipN; nzz = nzz / nl * flipN;
       var c0 = centroid(t), off = nozzle * 0.02;
       tested++;
       var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thr);
