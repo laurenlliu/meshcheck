@@ -189,7 +189,11 @@
     background: var(--pink); border: 2px solid var(--ink); border-radius: 4px;
     padding: 16px; font-size: 22px; line-height: 1.4; min-height: 150px;
   }
-  .btns { display: flex; justify-content: space-between; gap: 16px; margin-top: 20px; }
+  .unitsel { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 600; margin: 0 !important; }
+  .unitsel select { font: 600 18px var(--garamond); color: var(--ink); background: var(--white); border: 2px solid var(--ink); border-radius: 4px; padding: 6px 8px; cursor: pointer; }
+  .unitbox { position: absolute; left: 154px; bottom: 30px; z-index: 2; background: var(--white); border: 2px solid var(--ink); border-radius: 8px; padding: 6px 10px; }
+  .unitbox select { border: 0; padding: 2px; }
+  .btns { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 20px; }
   .btn {
     background: var(--orange); border: 2px solid var(--ink); border-radius: 4px;
     padding: 8px 28px; font-size: 22px; font-weight: 700; cursor: pointer;
@@ -442,6 +446,7 @@
       <h3 id="detailTitle"></h3>
       <p id="detailText"></p>
     </div>
+    <label class="unitsel unitbox" for="unitSel2" id="unitBox" hidden>Units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
     <div class="toolbar" role="toolbar" aria-label="Model tools">
       <button class="tool" id="arrowBtn" type="button" aria-pressed="true" title="Select: click a highlighted part to see why it won’t work" aria-label="Select"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M6 3v17l4.6-4.4 3.4 7 3-1.4-3.4-6.8H20Z" fill="currentColor"/></svg></button>
       <button class="tool" id="spinBtn" type="button" aria-pressed="false" title="Spin the model" aria-label="Spin"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M22 14a8 8 0 1 1-2.6-5.9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M21.5 3v6.5H15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -514,6 +519,7 @@
   <textarea id="partInfo" placeholder="Example: a slider for a mechanical pencil eraser"></textarea>
   <div class="btns">
     <button class="btn" id="cancelBtn" type="button">Cancel</button>
+    <label class="unitsel" for="unitSel">Model units <select id="unitSel"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
     <button class="btn" id="okBtn" type="button">OK!</button>
   </div>
 </dialog>
@@ -760,9 +766,10 @@
       off += 46 + nl + el + cl;
     }
     return Promise.all(jobs).then(function (parts) {
-      var out = [];
+      var out = [], unitName = '';
       parts.forEach(function (ab) {
         var doc = new DOMParser().parseFromString(new TextDecoder().decode(ab), 'application/xml');
+        if (!unitName) unitName = (doc.documentElement.getAttribute('unit') || '').toLowerCase();
         var meshes = doc.getElementsByTagName('mesh');
         for (var mi = 0; mi < meshes.length; mi++) {
           var vs = meshes[mi].getElementsByTagName('vertex'), ts = meshes[mi].getElementsByTagName('triangle'), P = [], j;
@@ -774,7 +781,9 @@
         }
       });
       if (out.length < 9) throw new Error('no triangles');
-      return new Float32Array(out);
+      var arr = new Float32Array(out);
+      arr.units = ({ millimeter: 'mm', centimeter: 'cm', meter: 'm', inch: 'in', foot: 'ft' })[unitName] || null;
+      return arr;
     });
   }
   function readMesh(f) {
@@ -782,7 +791,7 @@
   }
 
   /* ---------- checking the mesh: holes, bad edges and overhangs ---------- */
-  function analyze(m, n, unit) {
+  function analyze(m, n, unit, uname) {
     var res = { w: null, s: null, flags: new Uint8Array(n), anchors: { w: null, s: null } };
     var i, k, o, area = new Float32Array(n), nz = new Float32Array(n), total = 0;
     for (i = 0; i < n; i++) {
@@ -867,9 +876,9 @@
         res.anchors.s = spot(over);
       }
     }
-    // 3) thin walls: from the surface, shoot a short ray into the model and see how soon it hits the other side.
-    // STL files have no units, so we assume millimeters and call anything under 1.2 mm too thin.
-    var thr = 1.2 * (unit || 1), zmax = 0;
+    // 3) thin walls, tiny details and narrow gaps. From a sample of surface spots we shoot a short ray into
+    // the model (how thick is it here?) and one out of it (how wide is the gap?). `unit` is model size per millimeter.
+    var mmU = unit || 1, thr = 1.2 * mmU, nozzle = 0.4 * mmU, zmax = 0;
     for (i = 0; i < n * 3; i++) if (m[i * 3 + 2] > zmax) zmax = m[i * 3 + 2];
     var cs = Math.max(thr * 1.5, Math.max(sx, sy, zmax) / 40), gnx = Math.ceil(sx / cs) + 2, gny = Math.ceil(sy / cs) + 2, g3 = new Map();
     for (t = 0; t < n; t++) {
@@ -881,23 +890,21 @@
         var ck = (gz * gny + gy2) * gnx + gx2, arr = g3.get(ck); if (arr) arr.push(t); else g3.set(ck, [t]);
       }
     }
-    var stamp = new Int32Array(n).fill(-1), step = Math.max(1, Math.floor(n / 4000)), tested = 0, thin = [], thinMin = 1e30;
-    for (t = 0; t < n; t += step) {
-      if (area[t] <= 0) continue;
-      o = t * 9;
-      var e1x = m[o + 3] - m[o], e1y = m[o + 4] - m[o + 1], e1z = m[o + 5] - m[o + 2], e2x = m[o + 6] - m[o], e2y = m[o + 7] - m[o + 1], e2z = m[o + 8] - m[o + 2];
-      var nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nzz = e1x * e2y - e1y * e2x, nl = Math.sqrt(nx * nx + ny * ny + nzz * nzz);
-      nx /= nl; ny /= nl; nzz /= nl;
-      var c0 = centroid(t), off = thr * 0.02, ox = c0[0] - nx * off, oy = c0[1] - ny * off, oz = c0[2] - nzz * off, dx = -nx, dy = -ny, dz = -nzz;
-      var ex = c0[0] + dx * thr, ey = c0[1] + dy * thr, ez = c0[2] + dz * thr;
-      var lx = Math.max(0, Math.floor((Math.min(c0[0], ex) - minx) / cs)), hx = Math.floor((Math.max(c0[0], ex) - minx) / cs);
-      var ly = Math.max(0, Math.floor((Math.min(c0[1], ey) - miny) / cs)), hy = Math.floor((Math.max(c0[1], ey) - miny) / cs);
-      var lz = Math.max(0, Math.floor(Math.min(c0[2], ez) / cs)), hz = Math.floor(Math.max(c0[2], ez) / cs);
-      var best = 1e30, bestT = -1;
+    var stamp = new Int32Array(n).fill(-1), rayId = 0;
+    // nearest surface along a ray, up to maxd, ignoring triangles that touch t
+    function cast(t, ox, oy, oz, dx, dy, dz, maxd) {
+      rayId++;
+      var c0 = centroid(t), ex = ox + dx * maxd, ey = oy + dy * maxd, ez = oz + dz * maxd;
+      var lx = Math.max(0, Math.floor((Math.min(ox, ex) - minx) / cs)), hx = Math.floor((Math.max(ox, ex) - minx) / cs);
+      var ly = Math.max(0, Math.floor((Math.min(oy, ey) - miny) / cs)), hy = Math.floor((Math.max(oy, ey) - miny) / cs);
+      var lz = Math.max(0, Math.floor(Math.min(oz, ez) / cs)), hz = Math.floor(Math.max(oz, ez) / cs);
+      var best = 1e30, bestT = -1, v0 = vid[t * 3], v1 = vid[t * 3 + 1], v2 = vid[t * 3 + 2];
       for (var qz = lz; qz <= hz; qz++) for (var qy = ly; qy <= hy; qy++) for (var qx = lx; qx <= hx; qx++) {
         var cell = g3.get((qz * gny + qy) * gnx + qx); if (!cell) continue;
         for (var ci = 0; ci < cell.length; ci++) {
-          var u = cell[ci]; if (u === t || stamp[u] === t) continue; stamp[u] = t;
+          var u = cell[ci]; if (u === t || stamp[u] === rayId) continue; stamp[u] = rayId;
+          var w0 = vid[u * 3], w1 = vid[u * 3 + 1], w2 = vid[u * 3 + 2];
+          if (w0 === v0 || w0 === v1 || w0 === v2 || w1 === v0 || w1 === v1 || w1 === v2 || w2 === v0 || w2 === v1 || w2 === v2) continue;
           var q = u * 9, ax = m[q], ay = m[q + 1], az = m[q + 2];
           var f1x = m[q + 3] - ax, f1y = m[q + 4] - ay, f1z = m[q + 5] - az, f2x = m[q + 6] - ax, f2y = m[q + 7] - ay, f2z = m[q + 8] - az;
           var px = dy * f2z - dz * f2y, py = dz * f2x - dx * f2z, pz = dx * f2y - dy * f2x, det = f1x * px + f1y * py + f1z * pz;
@@ -910,19 +917,70 @@
           if (tt > 1e-6 && tt < best) { best = tt; bestT = u; }
         }
       }
-      tested++;
-      if (bestT >= 0 && best + off <= thr) { thin.push(t); res.flags[t] = 1; res.flags[bestT] = 1; thinMin = Math.min(thinMin, (best + off) / (unit || 1)); }
+      return bestT >= 0 ? { d: best, t: bestT } : null;
     }
-    if (thin.length >= 3 && thin.length >= tested * 0.015) {
-      var mm = Math.max(0.1, Math.round(thinMin * 10) / 10);
-      var thinText = 'Some walls are thinner than about 1.2 mm (the thinnest is around ' + mm + ' mm, assuming your file is in millimeters), shown in red. Thin walls can snap or print with gaps. Make them at least 1.2 mm thick, which is about three lines of plastic from a standard nozzle.';
-      if (res.w) res.w.text += ' Also: ' + thinText;
-      else { res.w = { short: 'Thin walls may not print', title: 'Warning! Thin walls', text: thinText }; res.anchors.w = spot(thin); }
+    var step = Math.max(1, Math.floor(n / 4000)), tested = 0, thin = [], tiny = [], gaps = [], pT = [], pY = [], pG = [], thinMin = 1e30, tinyMin = 1e30, gapMin = 1e30;
+    for (t = 0; t < n; t += step) {
+      if (area[t] <= 0) continue;
+      o = t * 9;
+      var e1x = m[o + 3] - m[o], e1y = m[o + 4] - m[o + 1], e1z = m[o + 5] - m[o + 2], e2x = m[o + 6] - m[o], e2y = m[o + 7] - m[o + 1], e2z = m[o + 8] - m[o + 2];
+      var nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nzz = e1x * e2y - e1y * e2x, nl = Math.sqrt(nx * nx + ny * ny + nzz * nzz);
+      nx /= nl; ny /= nl; nzz /= nl;
+      var c0 = centroid(t), off = nozzle * 0.02;
+      tested++;
+      var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thr);   // inward: wall thickness
+      if (hit && hit.d + off <= thr) {
+        var th = (hit.d + off) / mmU;
+        if (th < 0.4) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); }
+      }
+      var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, nozzle);     // outward: gap width
+      if (gap && gap.d + off < nozzle) { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, (gap.d + off) / mmU); }
+    }
+    // loose specks: separate pieces smaller than 1 mm across
+    var par = new Int32Array(nid); for (i = 0; i < nid; i++) par[i] = i;
+    function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    for (t = 0; t < n; t++) { var r0 = find(vid[t * 3]), r1 = find(vid[t * 3 + 1]), r2 = find(vid[t * 3 + 2]); par[r1] = r0; par[find(r2)] = find(r0); }
+    var box = new Map(), root;
+    for (t = 0; t < n; t++) {
+      root = find(vid[t * 3]); var bb = box.get(root);
+      if (!bb) { bb = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], tris: [] }; box.set(root, bb); }
+      bb.tris.push(t);
+      for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], ax2 = k % 3; if (cv < bb.lo[ax2]) bb.lo[ax2] = cv; if (cv > bb.hi[ax2]) bb.hi[ax2] = cv; }
+    }
+    var specks = [];
+    if (box.size > 1) box.forEach(function (bb) {
+      if (Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]) < 1 * mmU) bb.tris.forEach(function (t) { specks.push(t); res.flags[t] = 1; });
+    });
+
+    var enough = function (list) { return list.length >= 3 && list.length >= tested * 0.015; };
+    var uTxt = ' (your model units are set to ' + (uname || 'millimeters') + ', which you can change with the Units menu)';
+    function mark(list, part) { list.forEach(function (t, j) { res.flags[t] = 1; res.flags[part[j]] = 1; }); }
+    if (enough(tiny)) mark(tiny, pY); if (enough(gaps)) mark(gaps, pG); if (enough(thin)) mark(thin, pT);
+    var smallParts = [];
+    if (enough(tiny)) smallParts.push('features only about ' + Math.max(0.05, Math.round(tinyMin * 100) / 100) + ' mm thick');
+    if (enough(gaps)) smallParts.push('gaps only about ' + Math.max(0.05, Math.round(gapMin * 100) / 100) + ' mm wide');
+    if (specks.length) smallParts.push('tiny loose pieces');
+    var extra = [], focus = [];
+    if (smallParts.length) {
+      extra.push({ short: 'Details too small to print', title: 'Warning! Small details',
+        text: 'This model has ' + smallParts.join(', ') + ', shown in red. A standard 0.4 mm nozzle can’t print details that small, so they may be missing, merged together or left floating' + uTxt + '. Make small details at least 0.4 mm, or leave them out.' });
+      focus = focus.concat(enough(tiny) ? tiny : [], enough(gaps) ? gaps : [], specks);
+    }
+    if (enough(thin)) {
+      extra.push({ short: 'Thin walls may not print', title: 'Warning! Thin walls',
+        text: 'Some walls are thinner than about 1.2 mm (the thinnest is around ' + Math.max(0.1, Math.round(thinMin * 10) / 10) + ' mm), shown in red. Thin walls can snap or print with gaps. Make them at least 1.2 mm thick, about three lines of plastic from a standard nozzle' + uTxt + '.' });
+      if (!focus.length) focus = thin;
+    }
+    if (extra.length) {
+      var more = extra.map(function (x) { return x.text; });
+      if (res.w) res.w.text += ' Also: ' + more.join(' Also: ');
+      else { res.w = { short: extra[0].short, title: extra.length > 1 ? 'Warning! Small details and thin walls' : extra[0].title, text: more.join(' Also: ') }; res.anchors.w = spot(focus); }
     }
     return res;
   }
 
   /* ---------- state ---------- */
+  var MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 }, UNAME = { mm: 'millimeters', cm: 'centimeters', m: 'meters', in: 'inches', ft: 'feet' };
   var COLORS = ['#EB5406', '#FF991C', '#D21404', '#FF5350', '#1F8A8A', '#6B4FBB'];
   var projects = [], curP = -1, acct = null, view = 'home', authMode = 'in', chosen = null;
 
@@ -983,7 +1041,7 @@
     if (!has) chosen = null;
   }
   function openPrompt() {
-    partInfo.value = ''; projName.value = ''; setFile('');
+    partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; setFile('');
     promptDlg.showModal();
   }
   function showWrong(name) {
@@ -995,7 +1053,7 @@
   function handle(f) {
     if (!f) return;
     if (!OK.test(f.name)) { showWrong(f.name); return; }
-    if (!promptDlg.open) { partInfo.value = ''; projName.value = ''; promptDlg.showModal(); }
+    if (!promptDlg.open) { partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; promptDlg.showModal(); }
     chosen = f; setFile(f.name);
     if (wrongDlg.open) wrongDlg.close();
   }
@@ -1011,7 +1069,7 @@
       .then(function (r) {
         setTimeout(function () {
           progress.classList.remove('on');
-          projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad });
+          projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad, units: r.m.units || $('unitSel').value });
           curP = projects.length - 1;
           setView('project');
         }, Math.max(0, 1800 - (Date.now() - t0)));
@@ -1082,13 +1140,18 @@
     $('projTagName').textContent = p ? p.name : 'Project Name';
     projTag.classList.toggle('empty', !p);
     viewer.marks = !!p; viewer.setMesh(p ? p.mesh : null);
-    if (p && viewer.mesh && !p.res) p.res = p.unreadable ? { w: null, s: null, flags: null, anchors: { w: null, s: null } } : analyze(viewer.mesh, viewer.n, viewer.unit);
+    if (p && viewer.mesh && !p.res) p.res = p.unreadable ? { w: null, s: null, flags: null, anchors: { w: null, s: null } } : analyze(viewer.mesh, viewer.n, viewer.unit / MM[p.units || 'mm'], UNAME[p.units || 'mm']);
     viewer.flags = p && p.res ? p.res.flags : null; viewer.anchors = p && p.res ? p.res.anchors : null;
     warnBox.hidden = !(p && p.res && p.res.w); sugBox.hidden = !(p && p.res && p.res.s);
     if (!warnBox.hidden) warnBox.innerHTML = '<b>Warning!</b>' + p.res.w.short;
     if (!sugBox.hidden) sugBox.innerHTML = '<b>Suggestion:</b>' + p.res.s.short;
     detail.hidden = true; projList.hidden = true;
+    $('unitBox').hidden = !p || !!p.unreadable; if (p) $('unitSel2').value = p.units || 'mm';
   }
+  $('unitSel2').addEventListener('change', function () {
+    var p = projects[curP]; if (!p) return;
+    p.units = this.value; p.res = null; refreshProject(); setBubble();
+  });
   $('detailX').addEventListener('click', function () { detail.hidden = true; });
   sugBox.addEventListener('click', function () { showDetail('s'); });
   warnBox.addEventListener('click', function () { showDetail('w'); });
