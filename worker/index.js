@@ -1,7 +1,21 @@
 // MeshCheck Tiger relay: runs on Cloudflare Workers and answers with Workers AI (free daily allowance).
 // The page sends measured facts about the user's model plus their question. The 3D file itself is never sent.
 
-const MODEL = '@cf/meta/llama-3.1-8b-instruct';
+const MODELS = ['@cf/meta/llama-3.1-8b-instruct', '@cf/meta/llama-3.1-8b-instruct-fast', '@cf/meta/llama-3.2-3b-instruct', '@cf/meta/llama-3.3-70b-instruct-fp8-fast'];
+
+async function ask(env, messages) {
+  let last = 'no model tried';
+  const list = env.MODEL ? [env.MODEL].concat(MODELS) : MODELS;
+  for (const m of list) {
+    try {
+      const out = await env.AI.run(m, { messages: messages, max_tokens: 450, temperature: 0.3 });
+      const answer = String((out && (out.response || out.result)) || '').trim();
+      if (answer) return { answer: answer, model: m };
+      last = m + ': empty answer';
+    } catch (e) { last = m + ': ' + String(e && e.message || e).slice(0, 300); }
+  }
+  return { error: last };
+}
 
 const SYSTEM = `You are Tiger, the friendly assistant inside MeshCheck, a website that checks 3D-print models and whether multi-part designs will fit and move.
 You get FACTS that code measured on the user's real model, then the user's question.
@@ -31,6 +45,11 @@ export default {
   async fetch(req, env) {
     const h = cors(env, req);
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: h });
+    if (req.method === 'GET') {   // open the Worker address in a browser tab to check that the AI works
+      if (!env.AI) return json({ ok: false, problem: 'The Workers AI binding named AI is missing.' }, 500, h);
+      const t = await ask(env, [{ role: 'user', content: 'Reply with the single word: ready' }]);
+      return json(t.answer ? { ok: true, model: t.model, reply: t.answer.slice(0, 40) } : { ok: false, problem: t.error }, t.answer ? 200 : 500, h);
+    }
     if (req.method !== 'POST') return json({ error: 'POST only' }, 405, h);
     const allow = env.ALLOWED_ORIGIN;
     if (allow && req.headers.get('Origin') !== allow) return json({ error: 'Not allowed from this site.' }, 403, h);
@@ -43,13 +62,8 @@ export default {
       return { role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 800) };
     });
     const messages = [{ role: 'system', content: SYSTEM }].concat(history, [{ role: 'user', content: 'FACTS (measured by code, treat as true):\n' + facts + '\n\nQUESTION: ' + question }]);
-    try {
-      const out = await env.AI.run(env.MODEL || MODEL, { messages: messages, max_tokens: 450, temperature: 0.3 });
-      const answer = String((out && (out.response || out.result)) || '').trim();
-      if (!answer) return json({ error: 'No answer.' }, 502, h);
-      return json({ answer: answer }, 200, h);
-    } catch (e) {
-      return json({ error: 'The AI is busy or out of free uses today.' }, 503, h);
-    }
+    const r = await ask(env, messages);
+    if (r.answer) return json({ answer: r.answer }, 200, h);
+    return json({ error: 'The AI is busy or out of free uses today.', detail: r.error }, 503, h);
   }
 };

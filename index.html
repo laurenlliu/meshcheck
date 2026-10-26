@@ -2246,7 +2246,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl ? ctl.signal : undefined, body: JSON.stringify({ question: t, facts: aiFacts(p, fallback), history: chatHist.slice(-6) }) })
       .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (j) { clearTimeout(to); var a = (j && j.answer || '').replace(/\s*—\s*/g, ', ').trim(); if (!a) throw 0; box.textContent = a; chatHist.push({ role: 'user', content: t }, { role: 'assistant', content: a }); $('chatLog').scrollTop = $('chatLog').scrollHeight; })
-      .catch(function () { clearTimeout(to); box.textContent = fallback; });
+      .catch(function (err) { clearTimeout(to); try { console.warn('Tiger AI relay failed:', err); } catch (e) {} box.textContent = fallback + '\n\n(This is my built-in answer because the AI helper didn’t respond.)'; });
   });
   say('tiger', 'Hi! I’m Tiger AI. Ask me anything about your 3D model!');
 
