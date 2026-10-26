@@ -3087,7 +3087,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
   }
 
   /* ---------- Tiger AI helper: sends measured facts (never the 3D file) to a free relay (see worker/README.md) ---------- */
-  var AI_URL = '';   // address of your Cloudflare Worker, for example 'https://meshcheck-tiger.yourname.workers.dev'. Leave empty to use the built-in answers only.
+  var AI_URL = 'https://meshcheck-tiger.laurenercs.workers.dev';   // the free Cloudflare relay (see worker/README.md). Empty means built-in answers only.
   var chatHist = [];
   function aiFacts(p, rulesAnswer) {
     var f = { note: 'All numbers were measured by code on the user’s model. Lengths are in millimeters.', freeSlidingGapMm: settings.clear || (settings.material === 'Resin' ? 0.15 : 0.3), freeSlidingGapIsDefault: !settings.clear };
