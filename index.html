@@ -359,6 +359,9 @@
   }
   .pfield::placeholder { color: rgba(27, 31, 39, .55); }
   .authform { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .privacy { display: block; font: 600 17px var(--garamond); opacity: .85; margin: 4px 0 8px; }
+  .okmsg { margin: 0; color: #146B3A; font-size: 20px; font-weight: 700; }
+  .syncnote { margin: 0; font-size: 18px; opacity: .8; }
   .err { margin: 0; color: #7A0A00; font-size: 20px; font-weight: 700; }
   .swap { margin: 0; font-size: 21px; }
   .linkbtn { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
@@ -507,6 +510,7 @@
 
     <div class="dropzone" id="drop" role="button" tabindex="0" aria-label="Drag files here to start, or press Enter to choose a file">
       <strong>Drag Files Here to Start!</strong>
+      <small class="privacy">Your 3D files are checked in your browser and never uploaded.</small>
       <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 6v24M14 21l10 10 10-10M8 34v6h32v-6" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
   </div>
@@ -558,6 +562,7 @@
         <button class="btn small alt" id="copyBtn" type="button">Copy summary</button>
         <button class="btn small alt" id="verBtn" type="button">Upload new version</button>
         <input type="file" id="verFile" accept=".stl,.3mf" hidden>
+        <input type="file" id="reFile" accept=".stl,.3mf" hidden>
       </div>
     </aside>
     <div class="viewwrap" id="viewwrap">
@@ -608,16 +613,20 @@
     <div class="pane" id="outPane">
       <p class="lead" id="outLead">Sign in to save your progress!</p>
       <form class="authform" id="authForm" novalidate>
-        <input class="pfield" id="authUser" type="text" placeholder="Username/Email" autocomplete="username" aria-label="Username or email">
-        <input class="pfield" id="authPass" type="password" placeholder="Password" autocomplete="current-password" aria-label="Password">
+        <input class="pfield" id="authName" type="text" placeholder="Your name (optional)" autocomplete="name" aria-label="Your name" hidden>
+        <input class="pfield" id="authUser" type="email" placeholder="Email" autocomplete="email" aria-label="Email">
+        <input class="pfield" id="authPass" type="password" placeholder="Password (6 or more characters)" autocomplete="current-password" aria-label="Password">
         <p class="err" id="authErr" role="alert" hidden></p>
-        <button class="btn" type="submit">Sign in</button>
+        <p class="okmsg" id="authMsg" role="status" hidden></p>
+        <button class="btn" type="submit" id="authSubmit">Sign in</button>
+        <button class="linkbtn" id="forgotBtn" type="button">Forgot your password?</button>
       </form>
-      <button class="gbtn" id="googleBtn" type="button" hidden><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8Z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.300 1.100-3.800 1.100-2.900 0-5.400-2-6.300-4.600H2.100v2.800A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.700 14.100a6.600 6.600 0 0 1 0-4.200V7.100H2.100a11 11 0 0 0 0 9.800Z"/><path fill="#EA4335" d="M12 5.400c1.600 0 3.100.6 4.200 1.700l3.100-3.100A11 11 0 0 0 2.100 7.100l3.600 2.800C6.600 7.300 9.100 5.400 12 5.400Z"/></svg>Sign up with Google</button>
+      <button class="gbtn" id="googleBtn" type="button"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.5c2.1-1.9 3.3-4.7 3.3-8Z"/><path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.5-2.7c-1 .7-2.300 1.100-3.800 1.100-2.900 0-5.400-2-6.300-4.600H2.100v2.800A11 11 0 0 0 12 23Z"/><path fill="#FBBC05" d="M5.700 14.100a6.600 6.600 0 0 1 0-4.200V7.100H2.100a11 11 0 0 0 0 9.800Z"/><path fill="#EA4335" d="M12 5.400c1.600 0 3.100.6 4.200 1.700l3.100-3.100A11 11 0 0 0 2.100 7.100l3.600 2.800C6.600 7.300 9.100 5.400 12 5.400Z"/></svg><span id="googleTxt">Sign in with Google</span></button>
       <p class="swap"><span id="swapText">Don’t have an account?</span> <button class="linkbtn" id="swapBtn" type="button">Sign up here!</button></p>
     </div>
     <div class="pane" id="inPane" hidden>
       <p class="lead" id="inName"></p>
+      <p class="syncnote" id="syncNote"></p>
       <label class="btn alt" for="avatarFile">Change picture</label>
       <input type="file" id="avatarFile" accept="image/*" hidden>
       <div class="row">
@@ -959,7 +968,7 @@
   var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
   var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20 };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
-  function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} }
+  function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} if (window.mcSettingsChanged) window.mcSettingsChanged(); }
 
   /* what the user says the part is for -> tips (these never change the score) */
   function purposeTips(text, material) {
@@ -1551,7 +1560,7 @@
   var sugBox = $('sugBox'), warnBox = $('warnBox'), detail = $('detail'), projTag = $('projTag'), projList = $('projList'), report = $('report');
   var focusId = null, runToken = 0;
 
-  function cur() { return projects[curP] || null; }
+  function cur() { var p = projects[curP]; return p && p.mesh ? p : null; }
   function optsFor(p) {
     return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, purpose: p.info || '' };
   }
@@ -1658,7 +1667,7 @@
     setTimeout(function () {
       if (tok !== runToken || cur() !== p) return;
       p.res = analyze(p.norm, viewer.n, optsFor(p));
-      applyResult(p); renderReport(p); setBubble();
+      applyResult(p); renderReport(p); setBubble(); cloudSave(p);
       if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
       if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
@@ -1996,20 +2005,30 @@
   });
 
   /* ---------- My Archive ---------- */
+  var reTarget = null;
+  $('reFile').addEventListener('change', function () {
+    var f = this.files[0], p = reTarget; this.value = ''; reTarget = null; if (!f || !p) return;
+    if (!OK.test(f.name)) { toast('Please choose an STL or 3MF file.'); return; }
+    readMesh(f).then(function (m2) {
+      if (!m2 || m2.length < 9) { toast('I couldn’t read that file.'); return; }
+      p.mesh = m2; p.file = f.name; p.units = m2.units || p.units; p.res = null; curP = projects.indexOf(p); setView('project');
+    }, function () { toast('I couldn’t read that file.'); });
+  });
   function renderArchive() {
     var box = $('archList'); box.innerHTML = '';
     $('archEmpty').hidden = projects.length > 0;
     projects.forEach(function (p, i) {
       var c = document.createElement('div'); c.className = 'acard';
-      var sc = p.res ? p.res.score : null;
+      var sc = p.res ? p.res.score : (p.saved ? p.saved.score : null), nIss = p.res ? p.res.issues.length : (p.saved ? p.saved.n : null);
       c.innerHTML = '<div class="aring"></div><div class="ameta"><b></b><small></small></div><div class="abtns"><button class="btn small" type="button">Open</button><button class="btn small alt" type="button">Remove</button></div>';
       c.querySelector('b').textContent = p.name;
-      c.querySelector('small').textContent = p.file + ' · ' + (p.res ? (p.res.issues.length ? p.res.issues.length + ' to look at' : 'No problems') : 'Open to check') + ' · ' + p.when;
+      c.querySelector('small').textContent = p.file + ' · ' + (nIss != null ? (nIss ? nIss + ' to look at' : 'No problems') : 'Open to check') + ' · ' + p.when;
       var ring = c.querySelector('.aring'); ring.textContent = sc == null ? '?' : sc;
       ring.style.setProperty('--p', sc == null ? 0 : sc); ring.style.setProperty('--c', sc == null ? '#999' : sc >= 90 ? '#2E9E5B' : sc >= 60 ? '#FF991C' : '#D21404');
       var bs = c.querySelectorAll('button');
-      bs[0].addEventListener('click', function () { curP = i; setView('project'); });
-      bs[1].addEventListener('click', function () { projects.splice(i, 1); curP = Math.min(curP, projects.length - 1); if (i < curP) curP--; renderArchive(); setBubble(); });
+      if (!p.mesh) bs[0].textContent = 'Re-upload';
+      bs[0].addEventListener('click', function () { if (!p.mesh) { reTarget = p; $('reFile').click(); return; } curP = i; setView('project'); });
+      bs[1].addEventListener('click', function () { if (p.cid && cloud && acct) cloud.delProject(acct.uid, p.cid).catch(function () {}); projects.splice(i, 1); curP = Math.min(curP, projects.length - 1); if (i < curP) curP--; renderArchive(); setBubble(); });
       box.appendChild(c);
     });
   }
@@ -2051,33 +2070,99 @@
   }
 
   /* ---------- My Profile (front-end only: nothing is saved on a server yet) ---------- */
+  var cloud = null, syncing = false, signedAs = null;
+  window.mcFirebase = function (api) { cloud = api; };
+  function authMsg(kind, text) { $('authErr').hidden = kind !== 'err' || !text; $('authMsg').hidden = kind !== 'ok' || !text; $('authErr').textContent = kind === 'err' ? text : ''; $('authMsg').textContent = kind === 'ok' ? text : ''; }
+  function fbErr(e) {
+    var c = (e && e.code) || '';
+    if (/popup-closed|cancelled-popup/.test(c)) return '';
+    if (/invalid-credential|wrong-password|user-not-found|invalid-login/.test(c)) return 'That email and password don’t match. Check them, or use “Forgot your password?”.';
+    if (/email-already-in-use/.test(c)) return 'There’s already an account with that email. Try signing in instead.';
+    if (/weak-password/.test(c)) return 'Use a password with at least 6 characters.';
+    if (/invalid-email|missing-email/.test(c)) return 'That doesn’t look like an email address.';
+    if (/too-many-requests/.test(c)) return 'Too many tries. Wait a few minutes and try again.';
+    if (/network/.test(c)) return 'I couldn’t reach the sign-in service. Check your internet connection.';
+    if (/unauthorized-domain/.test(c)) return 'This website address isn’t approved for sign-in yet. Add it under Authentication, Settings, Authorized domains in Firebase.';
+    if (/operation-not-allowed/.test(c)) return 'This sign-in method isn’t turned on yet in Firebase (Authentication, Sign-in method).';
+    if (/requires-recent-login/.test(c)) return 'For safety, sign out, sign in again, then delete your account.';
+    if (/popup-blocked/.test(c)) return 'Your browser blocked the Google window. Allow pop-ups for this site and try again.';
+    return 'Something went wrong (' + (c || 'unknown') + '). Please try again.';
+  }
+  function needCloud() { if (cloud) return true; authMsg('err', 'Sign-in isn’t available right now. Check your internet connection and reload the page.'); return false; }
   function renderProfile() {
     var inn = !!acct;
     $('outPane').hidden = inn; $('inPane').hidden = !inn; $('delAsk').hidden = true;
-    if (inn) { $('inName').textContent = acct.name; return; }
+    if (inn) { $('inName').textContent = acct.name + (acct.email && acct.email !== acct.name ? ' (' + acct.email + ')' : ''); $('syncNote').textContent = syncing ? 'Syncing your projects…' : 'Your scores and settings are saved to your account. Your 3D files stay on your computer.'; return; }
     var up = authMode === 'up';
-    $('authForm').hidden = up; $('googleBtn').hidden = !up; $('authErr').hidden = true;
+    $('authName').hidden = !up; $('authPass').autocomplete = up ? 'new-password' : 'current-password';
+    $('authSubmit').textContent = up ? 'Create account' : 'Sign in'; $('forgotBtn').hidden = up;
+    $('googleTxt').textContent = up ? 'Sign up with Google' : 'Sign in with Google';
     $('outLead').textContent = up ? 'Sign up to save your progress!' : 'Sign in to save your progress!';
     $('swapText').textContent = up ? 'Already have an account?' : 'Don’t have an account?';
     $('swapBtn').textContent = up ? 'Sign in here!' : 'Sign up here!';
   }
-  function signIn(name) {
-    acct = { name: name, color: COLORS[Math.floor(Math.random() * COLORS.length)], img: null };
-    renderAvatars(); renderProfile();
+  function colorFor(uid) { var h = 0; for (var i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
+  function newCid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function cloudSave(p) {
+    if (!acct || !cloud || !p || !p.res) return;
+    p.cid = p.cid || newCid();
+    p.saved = { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }) };
+    cloud.saveProject(acct.uid, p.cid, { name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', score: p.saved.score, n: p.saved.n, titles: p.saved.titles, verdict: p.res.verdict, history: p.history || [], updated: Date.now() }).catch(function () {});
   }
-  $('swapBtn').addEventListener('click', function () { authMode = authMode === 'in' ? 'up' : 'in'; renderProfile(); });
+  window.mcCloudSave = cloudSave;
+  var setTimer = null;
+  window.mcSettingsChanged = function () {
+    if (!acct || !cloud || syncing) return;
+    clearTimeout(setTimer); setTimer = setTimeout(function () { cloud.saveSettings(acct.uid, JSON.parse(JSON.stringify(settings))).catch(function () {}); }, 600);
+  };
+  window.mcUser = function (u) {
+    if (!u) {
+      if (acct) { acct = null; signedAs = null; projects = []; curP = -1; authMode = 'in'; renderAvatars(); renderProfile(); if (view === 'archive') renderArchive(); setBubble(); }
+      return;
+    }
+    if (signedAs === u.uid) { if (u.name && acct && acct.name !== u.name) { acct.name = u.name; renderProfile(); } return; }
+    signedAs = u.uid;
+    acct = { uid: u.uid, email: u.email || '', name: u.name || (u.email || 'You').split('@')[0], color: colorFor(u.uid), img: u.photo || null };
+    syncing = true; renderAvatars(); renderProfile(); authMsg('', '');
+    cloud.loadAll(u.uid).then(function (data) {
+      if (data.settings) { settings = Object.assign(settings, data.settings); if (!PRINTERS[settings.printer]) settings.printer = 'ender3'; try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} syncSettings(); }
+      var have = {}; projects.forEach(function (p) { if (p.cid) have[p.cid] = true; });
+      data.projects.forEach(function (d) {
+        if (have[d.id]) return;
+        projects.push({ cid: d.id, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: { score: d.score, n: d.n, titles: d.titles || [] } });
+      });
+      projects.forEach(function (p) { if (p.mesh && !p.cid) { p.cid = newCid(); if (p.res) cloudSave(p); } });
+      if (data.projects.length === 0 && !projects.some(function (p) { return p.mesh; })) { /* new account: nothing to load */ }
+    }).catch(function () { toast('I signed you in but couldn’t load your saved projects. Try reloading.'); })
+      .then(function () { syncing = false; renderProfile(); if (view === 'archive') renderArchive(); recheckIfOpen(); });
+  };
+  function recheckIfOpen() { if (view === 'project') refreshProject(); }
+  $('swapBtn').addEventListener('click', function () { authMode = authMode === 'in' ? 'up' : 'in'; authMsg('', ''); renderProfile(); });
   $('authForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var u = $('authUser').value.trim(), p = $('authPass').value;
-    if (!u || !p) { $('authErr').textContent = 'Enter your username or email and your password.'; $('authErr').hidden = false; return; }
-    signIn(u); $('authPass').value = '';
+    e.preventDefault(); authMsg('', '');
+    var em = $('authUser').value.trim(), pw = $('authPass').value;
+    if (!em || !pw) { authMsg('err', 'Enter your email and your password.'); return; }
+    if (!needCloud()) return;
+    $('authSubmit').disabled = true;
+    var job = authMode === 'up' ? cloud.signUp(em, pw, $('authName').value.trim()) : cloud.signIn(em, pw);
+    job.then(function () { $('authPass').value = ''; }, function (er) { authMsg('err', fbErr(er)); }).then(function () { $('authSubmit').disabled = false; });
   });
-  $('googleBtn').addEventListener('click', function () { signIn('Google account'); });
-  $('signOut').addEventListener('click', function () { acct = null; authMode = 'in'; renderAvatars(); renderProfile(); });
+  $('googleBtn').addEventListener('click', function () {
+    authMsg('', ''); if (!needCloud()) return;
+    cloud.google().catch(function (er) { authMsg('err', fbErr(er)); });
+  });
+  $('forgotBtn').addEventListener('click', function () {
+    var em = $('authUser').value.trim();
+    if (!em) { authMsg('err', 'Type your email above first, then press this again.'); return; }
+    if (!needCloud()) return;
+    cloud.reset(em).then(function () { authMsg('ok', 'If an account exists for ' + em + ', I sent a link to reset the password. Check your spam folder too.'); }, function (er) { authMsg('err', fbErr(er)); });
+  });
+  $('signOut').addEventListener('click', function () { if (cloud) cloud.out().catch(function () {}); else window.mcUser(null); });
   $('delBtn').addEventListener('click', function () { $('delAsk').hidden = false; });
   $('delNo').addEventListener('click', function () { $('delAsk').hidden = true; });
   $('delYes').addEventListener('click', function () {
-    acct = null; authMode = 'in'; projects = []; curP = -1; renderAvatars(); renderProfile();
+    if (!cloud || !acct) return;
+    cloud.deleteAccount(acct.uid).then(function () { toast('Your account and saved projects were deleted.'); }, function (er) { $('delAsk').hidden = true; toast(fbErr(er)); });
   });
   $('avatarFile').addEventListener('change', function () {
     var f = this.files[0]; if (!f || !acct) return;
@@ -2095,6 +2180,47 @@
 
   renderAvatars(); renderProfile(); setView('home');
 })();
+</script>
+<script type="module">
+  /* Firebase sign-in and saved projects. The web config below is meant to be public; the Firestore rules decide who can read what. */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, sendPasswordResetEmail, updateProfile, deleteUser } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  var firebaseConfig = {
+    apiKey: "AIzaSyB2zy0kqTXmDxOMYuBaUMc1-lunz2qXtK4",
+    authDomain: "meshcheck-1eb0b.firebaseapp.com",
+    projectId: "meshcheck-1eb0b",
+    storageBucket: "meshcheck-1eb0b.firebasestorage.app",
+    messagingSenderId: "24410073697",
+    appId: "1:24410073697:web:067958478bc56e52651820"
+  };
+  var app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
+  function pj(uid) { return collection(db, 'users', uid, 'projects'); }
+  window.mcFirebase({
+    signUp: function (email, pw, name) {
+      return createUserWithEmailAndPassword(auth, email, pw).then(function (c) { return name ? updateProfile(c.user, { displayName: name }).then(function () { window.mcUser({ uid: c.user.uid, email: c.user.email, name: name, photo: null }); }) : null; });
+    },
+    signIn: function (email, pw) { return signInWithEmailAndPassword(auth, email, pw); },
+    google: function () { return signInWithPopup(auth, new GoogleAuthProvider()); },
+    reset: function (email) { return sendPasswordResetEmail(auth, email); },
+    out: function () { return signOut(auth); },
+    saveProject: function (uid, id, data) { return setDoc(doc(pj(uid), id), data); },
+    delProject: function (uid, id) { return deleteDoc(doc(pj(uid), id)); },
+    saveSettings: function (uid, st) { return setDoc(doc(db, 'users', uid), { settings: st }, { merge: true }); },
+    loadAll: function (uid) {
+      return Promise.all([getDoc(doc(db, 'users', uid)), getDocs(pj(uid))]).then(function (r) {
+        var out = []; r[1].forEach(function (d) { var x = d.data(); x.id = d.id; out.push(x); });
+        out.sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); });
+        return { settings: r[0].exists() ? r[0].data().settings : null, projects: out };
+      });
+    },
+    deleteAccount: function (uid) {
+      return getDocs(pj(uid)).then(function (snap) { var jobs = []; snap.forEach(function (d) { jobs.push(deleteDoc(d.ref)); }); return Promise.all(jobs); })
+        .then(function () { return deleteDoc(doc(db, 'users', uid)); })
+        .then(function () { return deleteUser(auth.currentUser); });
+    }
+  });
+  onAuthStateChanged(auth, function (u) { window.mcUser(u ? { uid: u.uid, email: u.email, name: u.displayName, photo: u.photoURL } : null); });
 </script>
 <div id="printReport" aria-hidden="true"></div>
 </body>
