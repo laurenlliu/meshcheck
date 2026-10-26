@@ -288,8 +288,8 @@
     border: 2px solid var(--ink); border-radius: 6px; font: 600 19px/1.3 var(--garamond); cursor: pointer;
   }
   .callout b { display: block; font-size: 22px; }
-  .callout.sug { background: var(--gold); color: var(--ink); left: 50%; transform: translateX(-130%); }
-  .callout.warn { background: var(--red); color: var(--white); left: 50%; transform: translateX(30%); }
+  .callout.sug { background: var(--gold); color: var(--ink); right: calc(20px + min(260px, 38%) + 16px); }
+  .callout.warn { background: var(--red); color: var(--white); right: 20px; }
   .toolbar { position: absolute; left: 20px; bottom: 20px; z-index: 2; display: flex; gap: 10px; }
   .tool {
     width: 54px; height: 54px; display: grid; place-items: center; cursor: pointer;
@@ -378,6 +378,77 @@
     .callout { font-size: 16px; padding: 8px 10px; }
     .callout b { font-size: 18px; }
   }
+
+  /* ===== report panel, view buttons, archive ===== */
+  .stagebox { display: grid; grid-template-columns: 1fr; }
+  .stagebox.has-report { grid-template-columns: minmax(300px, 350px) 1fr; }
+  .viewwrap { position: relative; min-height: 0; overflow: hidden; }
+  .report {
+    overflow-y: auto; background: var(--white); border-right: 2px solid var(--ink); padding: 16px 16px 24px;
+    font-family: var(--garamond); min-height: 0;
+  }
+  .score { display: flex; align-items: center; gap: 14px; }
+  .score strong { display: block; font-size: 26px; line-height: 1.1; }
+  .score small { font-size: 19px; opacity: .8; }
+  .ring, .aring {
+    --p: 0; --c: #999; flex: none; position: relative; display: grid; place-items: center; border-radius: 50%;
+    background: conic-gradient(var(--c) calc(var(--p) * 1%), #e7e2e2 0); width: 78px; height: 78px; font-family: var(--garamond); font-weight: 700;
+  }
+  .ring::before, .aring::before { content: ""; position: absolute; inset: 8px; background: #fff; border-radius: 50%; }
+  .ring span, .aring { z-index: 0; }
+  .ring span { position: relative; font-size: 28px; }
+  .aring { width: 56px; height: 56px; font-size: 20px; }
+  .aring::before { inset: 6px; z-index: -1; }
+  .report h3 { margin: 16px 0 6px; font: 700 21px var(--garamond); }
+  .issues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .issue {
+    width: 100%; display: flex; gap: 10px; align-items: center; text-align: left; background: var(--white);
+    border: 2px solid var(--ink); border-radius: 6px; padding: 8px 10px; cursor: pointer; font-family: var(--garamond);
+  }
+  .issue:hover { background: #FFF3F3; }
+  .issue.on { background: var(--pink); }
+  .issue b { display: block; font-size: 19px; line-height: 1.15; }
+  .issue small { font-size: 16px; opacity: .75; }
+  .sev { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 700 16px var(--garamond); border: 2px solid var(--ink); color: #fff; }
+  .sev.err { background: var(--red); } .sev.warn { background: var(--orange); color: var(--ink); } .sev.info { background: var(--gold); color: var(--ink); }
+  .allgood { font-size: 19px; line-height: 1.3; background: #E6F5EC; border: 2px solid #2E9E5B; border-radius: 6px; padding: 10px; }
+  .info { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: 18px; }
+  .info dt { font-weight: 700; } .info dd { margin: 0; text-align: right; }
+  .settings { margin-top: 14px; border: 2px solid var(--ink); border-radius: 6px; padding: 8px 10px; }
+  .settings summary { cursor: pointer; font-weight: 700; font-size: 20px; }
+  .settings label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 18px; }
+  .settings select, .settings input[type=number] { font: 600 17px var(--garamond); border: 2px solid var(--ink); border-radius: 4px; padding: 4px; background: #fff; color: var(--ink); max-width: 190px; }
+  .settings input[type=range] { width: 100px; vertical-align: middle; accent-color: var(--orange); }
+  .custom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 18px; }
+  .custom input { width: 66px; }
+  .rowbtns { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .btn.small { font-size: 18px; padding: 6px 14px; }
+  .btn.alt { background: var(--white); }
+  .toolbar { right: 20px; flex-wrap: wrap; align-items: center; }
+  .sep { width: 2px; align-self: stretch; background: var(--ink); opacity: .2; margin: 4px 2px; }
+  .tool.text { width: auto; height: 44px; padding: 0 12px; font: 700 18px var(--garamond); }
+  .detail .fix { margin-top: 8px; font-size: 19px; }
+  .toast {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 84px; z-index: 4; max-width: min(560px, calc(100% - 40px));
+    background: var(--ink); color: #fff; border-radius: 8px; padding: 10px 16px; font: 600 19px/1.3 var(--garamond); text-align: center;
+  }
+  .archview { padding: 8px clamp(16px, 5.5vw, 80px) 200px; display: flex; justify-content: center; }
+  .archcard { width: min(780px, 100%); background: var(--box); border: 2px solid var(--ink); border-radius: 12px; padding: 28px clamp(16px, 4vw, 36px) 30px; color: #000; font-family: var(--garamond); }
+  .archcard h1 { margin: 0 0 8px; font: 700 clamp(34px, 5vw, 48px)/1.1 var(--comfortaa); text-align: center; }
+  .archcard p { font-size: 22px; text-align: center; margin: 12px 0 0; }
+  .acard { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: #fff; border: 2px solid var(--ink); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .ameta { flex: 1; min-width: 160px; }
+  .ameta b { display: block; font-size: 23px; line-height: 1.15; }
+  .ameta small { font-size: 17px; opacity: .8; }
+  .abtns { display: flex; gap: 8px; }
+  .archlist { margin-top: 14px; }
+  @media (max-width: 900px) {
+    .stagebox.has-report { grid-template-columns: 1fr; height: auto; overflow: visible; }
+    .stagebox.has-report .viewwrap { height: 64vh; min-height: 420px; order: 1; }
+    .stagebox.has-report .report { order: 2; border-right: 0; border-top: 2px solid var(--ink); overflow: visible; padding-bottom: 200px; }
+    .toolbar { left: 12px; right: 12px; bottom: 12px; }
+    .detail { bottom: 120px; }
+  }
 </style>
 </head>
 <body>
@@ -388,7 +459,7 @@
 <header class="nav">
   <nav class="tabs" aria-label="Main">
     <a class="tab" href="#top" data-view="home" aria-current="page">Home</a>
-    <a class="tab" href="#" data-soon>My Archive</a>
+    <a class="tab" href="#" data-view="archive">My Archive</a>
     <a class="tab" href="#" data-view="project">My Project</a>
   </nav>
   <button class="profbtn" id="profBtn" type="button" aria-label="My Profile"></button>
@@ -436,21 +507,65 @@
 
 <section class="projview" id="projectView" hidden aria-label="My Project">
   <div class="stagebox" id="stagebox">
-    <canvas id="viewCanvas" aria-label="3D view of your project. Drag to look from another angle."></canvas>
-    <button class="projtag empty" id="projTag" type="button" aria-haspopup="true"><span id="projTagName">Project Name</span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3 5 4 4 4-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <div class="projlist" id="projList" hidden></div>
-    <button class="callout sug" id="sugBox" type="button" hidden><b>Suggestion:</b>Tap to see the idea</button>
-    <button class="callout warn" id="warnBox" type="button" hidden><b>Warning!</b>Tap to see why</button>
-    <div class="detail" id="detail" hidden role="status">
-      <button class="popx" id="detailX" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
-      <h3 id="detailTitle"></h3>
-      <p id="detailText"></p>
+    <aside class="report" id="report" hidden aria-label="Print check report">
+      <div class="score">
+        <div class="ring" id="scoreRing"><span id="scoreNum">…</span></div>
+        <div><strong id="scoreVerdict"></strong><small id="scoreSub"></small></div>
+      </div>
+      <h3>What I found</h3>
+      <ul class="issues" id="issueList"></ul>
+      <h3>About your model</h3>
+      <dl class="info" id="infoList"></dl>
+      <details class="settings" id="settingsBox">
+        <summary>Print settings</summary>
+        <label>Printer <select id="printerSel"></select></label>
+        <div class="custom" id="customBed" hidden><input id="bedX" type="number" min="10" max="2000" aria-label="Bed width in mm"> × <input id="bedY" type="number" min="10" max="2000" aria-label="Bed depth in mm"> × <input id="bedZ" type="number" min="10" max="2000" aria-label="Bed height in mm"> mm</div>
+        <label>Nozzle <select id="nozzleSel"><option value="0.2">0.2 mm</option><option value="0.4">0.4 mm</option><option value="0.6">0.6 mm</option><option value="0.8">0.8 mm</option></select></label>
+        <label>Material <select id="materialSel"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>Resin</option></select></label>
+        <label>Layer height <select id="layerSel"><option value="0.1">0.1 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.2 mm</option><option value="0.28">0.28 mm</option></select></label>
+        <label>Overhang limit <span><input type="range" id="angleRange" min="30" max="60" step="5" aria-label="Overhang limit in degrees"> <output id="angleOut">45°</output></span></label>
+        <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
+      </details>
+      <div class="rowbtns">
+        <button class="btn small" id="orientBtn" type="button">Best orientation</button>
+        <button class="btn small alt" id="fixBtn" type="button">Download fixed STL</button>
+        <button class="btn small alt" id="reportBtn" type="button">Download report</button>
+      </div>
+    </aside>
+    <div class="viewwrap" id="viewwrap">
+      <canvas id="viewCanvas" aria-label="3D view of your project. Drag to look from another angle."></canvas>
+      <button class="projtag empty" id="projTag" type="button" aria-haspopup="true"><span id="projTagName">Project Name</span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3 5 4 4 4-4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="projlist" id="projList" hidden></div>
+      <button class="callout sug" id="sugBox" type="button" hidden></button>
+      <button class="callout warn" id="warnBox" type="button" hidden></button>
+      <div class="detail" id="detail" hidden role="status">
+        <button class="popx" id="detailX" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
+        <h3 id="detailTitle"></h3>
+        <p id="detailText"></p>
+        <p class="fix" id="detailFixWrap"><b>How to fix:</b> <span id="detailFix"></span></p>
+      </div>
+      <div class="toast" id="toast" role="status" hidden></div>
+      <div class="toolbar" role="toolbar" aria-label="Model tools">
+        <button class="tool" id="arrowBtn" type="button" aria-pressed="true" title="Select: click a highlighted part to see why" aria-label="Select"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M6 3v17l4.6-4.4 3.4 7 3-1.4-3.4-6.8H20Z" fill="currentColor"/></svg></button>
+        <button class="tool" id="spinBtn" type="button" aria-pressed="false" title="Spin the model" aria-label="Spin"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M22 14a8 8 0 1 1-2.6-5.9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M21.5 3v6.5H15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool text" type="button" data-viewpreset="iso">Iso</button>
+        <button class="tool text" type="button" data-viewpreset="front">Front</button>
+        <button class="tool text" type="button" data-viewpreset="top">Top</button>
+        <button class="tool text" type="button" data-viewpreset="side">Side</button>
+        <span class="sep" aria-hidden="true"></span>
+        <button class="tool text" id="wireBtn" type="button" aria-pressed="false">Wireframe</button>
+        <button class="tool text" id="marksBtn" type="button" aria-pressed="true">Highlights</button>
+      </div>
     </div>
-    <label class="unitsel unitbox" for="unitSel2" id="unitBox" hidden>Units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
-    <div class="toolbar" role="toolbar" aria-label="Model tools">
-      <button class="tool" id="arrowBtn" type="button" aria-pressed="true" title="Select: click a highlighted part to see why it won’t work" aria-label="Select"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M6 3v17l4.6-4.4 3.4 7 3-1.4-3.4-6.8H20Z" fill="currentColor"/></svg></button>
-      <button class="tool" id="spinBtn" type="button" aria-pressed="false" title="Spin the model" aria-label="Spin"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M22 14a8 8 0 1 1-2.6-5.9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M21.5 3v6.5H15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    </div>
+  </div>
+</section>
+
+<section class="archview" id="archiveView" hidden aria-label="My Archive">
+  <div class="archcard">
+    <h1>My Archive</h1>
+    <p id="archEmpty">Nothing here yet. Upload a model to start!</p>
+    <div class="archlist" id="archList"></div>
   </div>
 </section>
 
@@ -552,9 +667,10 @@
 <dialog id="tutorialDialog" aria-labelledby="tutTitle">
   <h3 id="tutTitle">How MeshCheck works</h3>
   <ol>
-    <li>Upload your STL or 3MF file.</li>
-    <li>Tell MeshCheck what the part is for.</li>
-    <li>Review the problems it finds and the suggested fixes.</li>
+    <li>Drop your STL or 3MF file anywhere on the page, or press the + button. Name your project and say what the part is for.</li>
+    <li>Pick your printer, nozzle and units in Print settings so the checks match your setup.</li>
+    <li>Look at your score, then click each item under “What I found”. Problem spots light up on the model and I explain how to fix them.</li>
+    <li>Try “Best orientation” to cut down on overhangs, download a fixed STL or a report, and ask Tiger AI anything.</li>
   </ol>
   <button class="close" id="closeTut" type="button">Got it</button>
 </dialog>
@@ -575,7 +691,7 @@
     v.yaw = o.yaw != null ? o.yaw : 0.7;
     v.pitch = o.pitch != null ? o.pitch : 0.6;
     v.zoom = 1; v.auto = !!o.auto && !reduce;
-    v.plate = o.plate !== false; v.marks = false;
+    v.plate = o.plate !== false; v.marks = false; v.wire = false;
     v.mesh = null; v.n = 0; v.h = 0; v.anchors = null; v.flags = null; v.dirty = true;
     v.onDraw = null; v.onTap = null; v.screen = {};
     viewers.push(v);
@@ -648,11 +764,11 @@
           var col = 'rgb(' + Math.round(r * sh) + ',' + Math.round(g * sh) + ',' + Math.round(bl * sh) + ')';
           ctx.fillStyle = col; ctx.strokeStyle = col;
           ctx.beginPath(); ctx.moveTo(S[e * 6], S[e * 6 + 1]); ctx.lineTo(S[e * 6 + 2], S[e * 6 + 3]); ctx.lineTo(S[e * 6 + 4], S[e * 6 + 5]); ctx.closePath();
-          ctx.fill(); ctx.stroke();
+          if (v.wire) { ctx.strokeStyle = TN[e] ? col : 'rgba(27,31,39,.5)'; ctx.stroke(); } else { ctx.fill(); ctx.stroke(); }
         }
         if (v.anchors) {
           var A = v.anchors;
-          v.screen = { w: A.w ? P(A.w[0], A.w[1], A.w[2]) : null, s: A.s ? P(A.s[0], A.s[1], A.s[2]) : null };
+          var scr = {}; for (var ak in A) scr[ak] = A[ak] ? P(A[ak][0], A[ak][1], A[ak][2]) : null; v.screen = scr;
         }
       }
       if (v.onDraw) v.onDraw(ctx, W, H);
@@ -790,16 +906,28 @@
     return f.arrayBuffer().then(function (buf) { return /\.3mf$/i.test(f.name) ? parse3MF(buf) : parseSTL(buf); });
   }
 
-  /* ---------- checking the mesh: holes, bad edges and overhangs ---------- */
-  function analyze(m, n, unit, uname) {
-    var res = { w: null, s: null, flags: new Uint8Array(n), anchors: { w: null, s: null } };
-    var i, k, o, area = new Float32Array(n), nz = new Float32Array(n), total = 0;
-    for (i = 0; i < n; i++) {
-      o = i * 9;
-      var ux = m[o + 3] - m[o], uy = m[o + 4] - m[o + 1], uz = m[o + 5] - m[o + 2], wx = m[o + 6] - m[o], wy = m[o + 7] - m[o + 1], wz = m[o + 8] - m[o + 2];
-      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz);
-      area[i] = len / 2; nz[i] = len > 1e-12 ? cz / len : 0; total += area[i];
-    }
+  /* ---------- print settings ---------- */
+  var MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 }, UNAME = { mm: 'millimeters', cm: 'centimeters', m: 'meters', in: 'inches', ft: 'feet' };
+  var PRINTERS = {
+    ender3: { name: 'Creality Ender-3 (220 × 220 × 250)', bed: [220, 220, 250] },
+    k1: { name: 'Creality K1 (220 × 220 × 250)', bed: [220, 220, 250] },
+    prusa: { name: 'Prusa MK4 (250 × 210 × 220)', bed: [250, 210, 220] },
+    bambu: { name: 'Bambu Lab P1S / X1 (256 × 256 × 256)', bed: [256, 256, 256] },
+    mini: { name: 'Prusa Mini (180 × 180 × 180)', bed: [180, 180, 180] },
+    resin: { name: 'Small resin printer (120 × 68 × 155)', bed: [120, 68, 155] },
+    custom: { name: 'Custom size…', bed: null }
+  };
+  var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
+  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45 };
+  try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
+  function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} }
+
+  /* ---------- checking the mesh ----------
+     m is the model after the viewer centered it and put it on the plate. `o.perMm` is how many mesh units equal 1 millimeter. */
+  function analyze(m, n, o) {
+    var mmU = o.perMm || 1, noz = o.nozzle || 0.4, thinThr = 3 * noz, uname = o.uname || 'millimeters';
+    var res = { issues: [], metrics: {}, w: null, s: null, anchors: {}, n: n };
+    var i, k, t, e, q, oo;
     function centroid(t) { var q = t * 9; return [(m[q] + m[q + 3] + m[q + 6]) / 3, (m[q + 1] + m[q + 4] + m[q + 7]) / 3, (m[q + 2] + m[q + 5] + m[q + 8]) / 3]; }
     function spot(list) {   // a real triangle near the middle of the problem area
       var mx = 0, my = 0, mz = 0, c;
@@ -809,92 +937,185 @@
       list.forEach(function (t) { var c2 = centroid(t), d = (c2[0] - mx) * (c2[0] - mx) + (c2[1] - my) * (c2[1] - my) + (c2[2] - mz) * (c2[2] - mz); if (d < bd) { bd = d; best = t; } });
       return centroid(best);
     }
-    // 1) edges: every edge of a closed model is shared by exactly two triangles
+    function add(id, kind, color, title, short, text, fix, tris) {
+      res.issues.push({ id: id, kind: kind, color: color, title: title, short: short, text: text, fix: fix, tris: tris || [], count: tris ? tris.length : 0, anchor: tris && tris.length ? spot(tris) : null });
+    }
+    function r1(x) { return Math.round(x * 10) / 10; }
+
+    // basic numbers: face areas, directions, volume, size
+    var area = new Float32Array(n), nz = new Float32Array(n), total = 0, vol = 0;
+    var minx = 1e30, miny = 1e30, maxx = -1e30, maxy = -1e30, zmax = 0;
+    for (i = 0; i < n; i++) {
+      oo = i * 9;
+      var ax0 = m[oo], ay0 = m[oo + 1], az0 = m[oo + 2], ux = m[oo + 3] - ax0, uy = m[oo + 4] - ay0, uz = m[oo + 5] - az0, wx = m[oo + 6] - ax0, wy = m[oo + 7] - ay0, wz = m[oo + 8] - az0;
+      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz);
+      area[i] = len / 2; nz[i] = len > 1e-12 ? cz / len : 0; total += area[i];
+      vol += (ax0 * (m[oo + 4] * m[oo + 8] - m[oo + 5] * m[oo + 7]) - ay0 * (m[oo + 3] * m[oo + 8] - m[oo + 5] * m[oo + 6]) + az0 * (m[oo + 3] * m[oo + 7] - m[oo + 4] * m[oo + 6])) / 6;
+    }
+    for (i = 0; i < n * 3; i++) {
+      var vx = m[i * 3], vy = m[i * 3 + 1], vz = m[i * 3 + 2];
+      if (vx < minx) minx = vx; if (vx > maxx) maxx = vx; if (vy < miny) miny = vy; if (vy > maxy) maxy = vy; if (vz > zmax) zmax = vz;
+    }
+    var sx = (maxx - minx) || 1, sy = (maxy - miny) || 1, dimMax = Math.max(sx, sy, zmax) || 1;
+
+    // welded vertices and edges (a closed model shares every edge between exactly two triangles)
     var ids = new Map(), nid = 0, vid = new Int32Array(n * 3), key, id;
     for (i = 0; i < n * 3; i++) {
       key = Math.round(m[i * 3] * 500) + ',' + Math.round(m[i * 3 + 1] * 500) + ',' + Math.round(m[i * 3 + 2] * 500);
       id = ids.get(key); if (id === undefined) { id = nid++; ids.set(key, id); } vid[i] = id;
     }
-    var edges = new Map(), a, b, t, e;
+    var edges = new Map(), a, b;
     function ekey(x, y) { return x < y ? x * 67108864 + y : y * 67108864 + x; }
     for (t = 0; t < n; t++) for (e = 0; e < 3; e++) {
       a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
       key = ekey(a, b); edges.set(key, (edges.get(key) || 0) + 1);
     }
-    var open = 0, multi = 0, badTris = [];
+    var open = 0, multi = 0, holeTris = [], multiTris = [];
     edges.forEach(function (c) { if (c === 1) open++; else if (c > 2) multi++; });
     if (open || multi) {
-      for (t = 0; t < n; t++) for (e = 0; e < 3; e++) {
-        a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
-        var c = edges.get(ekey(a, b));
-        if (c !== 2) { res.flags[t] = 1; badTris.push(t); break; }
+      for (t = 0; t < n; t++) {
+        var isOpen = false, isMulti = false;
+        for (e = 0; e < 3; e++) {
+          a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
+          var c = edges.get(ekey(a, b)); if (c === 1) isOpen = true; else if (c > 2) isMulti = true;
+        }
+        if (isOpen) holeTris.push(t); else if (isMulti) multiTris.push(t);
       }
     }
-    if (open) {
-      res.w = { short: 'Holes in the surface', title: 'Warning! Holes in the model',
-        text: 'The surface has ' + open + ' open edge' + (open === 1 ? '' : 's') + ', which means there are gaps in the model. A slicer may fill them wrongly or fail. Repair the mesh in your modeling software, or with a mesh repair tool, before printing.' };
-    } else if (multi) {
-      res.w = { short: 'Faces overlap', title: 'Warning! Overlapping geometry',
-        text: multi + ' edge' + (multi === 1 ? ' is' : 's are') + ' shared by more than two faces, so the model is not one clean solid (non-manifold). A slicer may misread it. Merge the overlapping parts into a single solid before exporting.' };
+    var closed = !open && !multi;
+
+    // duplicate and zero-size faces
+    var degen = [], seen = new Set(), dup = [], degenEps = 1e-9 * dimMax * dimMax;
+    for (t = 0; t < n; t++) {
+      if (area[t] <= degenEps || vid[t * 3] === vid[t * 3 + 1] || vid[t * 3 + 1] === vid[t * 3 + 2] || vid[t * 3] === vid[t * 3 + 2]) { degen.push(t); continue; }
+      var tri = [vid[t * 3], vid[t * 3 + 1], vid[t * 3 + 2]].sort(function (x, y) { return x - y; });
+      key = tri[0] + '_' + tri[1] + '_' + tri[2];
+      if (seen.has(key)) dup.push(t); else seen.add(key);
     }
-    if (res.w) res.anchors.w = spot(badTris);
-    // 2) overhangs: faces tilted past 45 degrees with a gap under them (the plate, or a lower part)
-    var cand = [], gcell = 48, grid = [], minx = 1e30, miny = 1e30, maxx = -1e30, maxy = -1e30;
-    for (i = 0; i < n * 3; i++) { var vx = m[i * 3], vy = m[i * 3 + 1]; if (vx < minx) minx = vx; if (vx > maxx) maxx = vx; if (vy < miny) miny = vy; if (vy > maxy) maxy = vy; }
-    var sx = (maxx - minx) || 1, sy = (maxy - miny) || 1;
-    for (t = 0; t < n; t++) if (nz[t] < -0.7071 && area[t] > 0) cand.push(t);
+
+    // 1) holes and bad edges
+    if (open) {
+      add('holes', 'err', 1, 'Holes in the model', 'Holes in the surface',
+        'The surface has ' + open + ' open edge' + (open === 1 ? '' : 's') + ', which means there are gaps in the model (it is not watertight). A slicer may fill them wrongly, leave parts out, or fail.',
+        'Repair the mesh before printing. In Fusion 360 or Onshape, export the solid body again. In Blender, use Edit Mode > Select > Select All by Trait > Non Manifold, then Mesh > Clean Up > Fill Holes. Windows 3D Builder and Meshmixer also have an automatic repair.', holeTris);
+    }
+    if (multi) {
+      add('overlap', 'err', 1, 'Overlapping geometry', 'Faces overlap',
+        multi + ' edge' + (multi === 1 ? ' is' : 's are') + ' shared by more than two faces, so the model is not one clean solid (it is non-manifold). Slicers may misread which parts are inside.',
+        'Merge overlapping bodies into one solid (a Boolean union or "Combine" in your CAD program) and export again. Delete any hidden duplicate bodies.', multiTris);
+    }
+    // 2) faces pointing inward
+    if (closed && vol < 0) {
+      add('inverted', 'err', 1, 'Model is inside out', 'Faces point inward',
+        'Every face of this model points inward, so a slicer may think the inside is the outside and print nothing, or print it hollow.',
+        'Click "Download fixed STL" to flip every face. In Blender use Mesh > Normals > Recalculate Outside.', null);
+    }
+    // 3) tiny, duplicate and zero-size faces
+    if (degen.length || dup.length) {
+      var junk = degen.concat(dup);
+      add('junk', 'warn', 1, 'Duplicate or empty faces', 'Duplicate or empty faces',
+        'There are ' + degen.length + ' zero-size and ' + dup.length + ' duplicated faces. They add no shape but can confuse slicers and make the file larger.',
+        'Click "Download fixed STL" to remove them, or use Remove Duplicates / Merge by Distance in your modeling tool.', junk);
+    }
+
+    // sizes in millimeters
+    var X = sx / mmU, Y = sy / mmU, Z = zmax / mmU, volMm = Math.abs(vol) / (mmU * mmU * mmU), areaMm = total / (mmU * mmU);
+    res.metrics = { x: X, y: Y, z: Z, tris: n, volume: volMm, area: areaMm };
+    // 4) fit on the printer
+    var bed = o.bed || [220, 220, 250];
+    if (X <= bed[0] + 1e-6 && Y <= bed[1] + 1e-6 && Z <= bed[2] + 1e-6) res.metrics.fits = 'yes';
+    else if (Y <= bed[0] && X <= bed[1] && Z <= bed[2]) {
+      res.metrics.fits = 'turn';
+      add('fit', 'info', 2, 'Fits if turned', 'Turn it 90° on the bed',
+        'The model is ' + r1(X) + ' × ' + r1(Y) + ' × ' + r1(Z) + ' mm and your printer fits ' + bed.join(' × ') + ' mm. It only fits if you turn it 90° around the vertical axis.',
+        'Rotate it 90° in your slicer, or pick a different printer in Print settings.', null);
+    } else {
+      res.metrics.fits = 'no';
+      add('fit', 'err', 1, 'Too big for your printer', 'Larger than your printer',
+        'The model is ' + r1(X) + ' × ' + r1(Y) + ' × ' + r1(Z) + ' mm, but your printer only fits ' + bed.join(' × ') + ' mm. If your file is in a different unit, check the Units setting.',
+        'Scale the model down, cut it into pieces that fit, or choose a larger printer in Print settings. If the numbers look wrong, change the units.', null);
+    }
+
+    // 5) overhangs (faces tilted past the chosen angle with a gap underneath)
+    var angle = o.overhang || 45, limit = -Math.sin(angle * Math.PI / 180), cand = [], gcell = 48, grid = [];
+    for (t = 0; t < n; t++) if (nz[t] < limit && area[t] > 0) cand.push(t);
     if (cand.length) {
       for (i = 0; i < gcell * gcell; i++) grid.push(null);
       for (t = 0; t < n; t++) {
-        if (Math.abs(nz[t]) < 0.02) continue;          // vertical faces have nothing "below" them
-        o = t * 9;
-        var x0 = Math.min(m[o], m[o + 3], m[o + 6]), x1 = Math.max(m[o], m[o + 3], m[o + 6]), y0 = Math.min(m[o + 1], m[o + 4], m[o + 7]), y1 = Math.max(m[o + 1], m[o + 4], m[o + 7]);
-        var gx0 = Math.floor((x0 - minx) / sx * (gcell - 1)), gx1 = Math.floor((x1 - minx) / sx * (gcell - 1)), gy0 = Math.floor((y0 - miny) / sy * (gcell - 1)), gy1 = Math.floor((y1 - miny) / sy * (gcell - 1));
+        if (Math.abs(nz[t]) < 0.02) continue;
+        oo = t * 9;
+        var gx0 = Math.floor((Math.min(m[oo], m[oo + 3], m[oo + 6]) - minx) / sx * (gcell - 1)), gx1 = Math.floor((Math.max(m[oo], m[oo + 3], m[oo + 6]) - minx) / sx * (gcell - 1));
+        var gy0 = Math.floor((Math.min(m[oo + 1], m[oo + 4], m[oo + 7]) - miny) / sy * (gcell - 1)), gy1 = Math.floor((Math.max(m[oo + 1], m[oo + 4], m[oo + 7]) - miny) / sy * (gcell - 1));
         for (var gx = gx0; gx <= gx1; gx++) for (var gy = gy0; gy <= gy1; gy++) { var gi = gy * gcell + gx; (grid[gi] || (grid[gi] = [])).push(t); }
       }
-      var over = [], overArea = 0;
+      var over = [], overArea = 0, gapTol = 0.6 * mmU * (noz / 0.4);
       cand.forEach(function (t) {
         var c = centroid(t), px = c[0], py = c[1], pz = c[2], best = 0;
-        if (pz < 0.6) return;                           // sitting on the plate
+        if (pz < gapTol) return;                           // sitting on the plate
         var list = grid[Math.floor((py - miny) / sy * (gcell - 1)) * gcell + Math.floor((px - minx) / sx * (gcell - 1))] || [];
         for (var li = 0; li < list.length; li++) {
           var u = list[li]; if (u === t) continue;
-          var q = u * 9, ax = m[q], ay = m[q + 1], az = m[q + 2], bx = m[q + 3] - ax, by = m[q + 4] - ay, bz = m[q + 5] - az, cx2 = m[q + 6] - ax, cy2 = m[q + 7] - ay, cz2 = m[q + 8] - az;
+          var qq = u * 9, bx0 = m[qq], by0 = m[qq + 1], bz0 = m[qq + 2], bx = m[qq + 3] - bx0, by = m[qq + 4] - by0, bz = m[qq + 5] - bz0, cx2 = m[qq + 6] - bx0, cy2 = m[qq + 7] - by0, cz2 = m[qq + 8] - bz0;
           var det = bx * cy2 - cx2 * by; if (Math.abs(det) < 1e-9) continue;
-          var l1 = ((px - ax) * cy2 - cx2 * (py - ay)) / det, l2 = (bx * (py - ay) - (px - ax) * by) / det;
+          var l1 = ((px - bx0) * cy2 - cx2 * (py - by0)) / det, l2 = (bx * (py - by0) - (px - bx0) * by) / det;
           if (l1 < -1e-6 || l2 < -1e-6 || l1 + l2 > 1 + 1e-6) continue;
-          var zz = az + l1 * bz + l2 * cz2;
-          if (zz <= pz + 0.3 && zz > best) best = zz;
+          var zz = bz0 + l1 * bz + l2 * cz2;
+          if (zz <= pz + 0.3 * mmU && zz > best) best = zz;
         }
-        if (pz - best > 0.6) { over.push(t); overArea += area[t]; }
+        if (pz - best > gapTol) { over.push(t); overArea += area[t]; }
       });
       if (over.length && overArea > total * 0.005) {
-        over.forEach(function (t) { if (!res.flags[t]) res.flags[t] = 2; });
         var pct = Math.max(1, Math.round(overArea / total * 100));
-        res.s = { short: 'Overhang needs support', title: 'Suggestion: Overhang',
-          text: 'About ' + pct + '% of the surface faces down at a steep angle with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy. Turn the model so it faces up, or add support underneath.' };
-        res.anchors.s = spot(over);
+        res.overhangPct = pct;
+        add('overhang', pct >= 10 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
+          'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
+          'Turn the model so the flat side faces down (try the Best orientation button), add supports in your slicer, or redesign the overhang as a 45° slope or a chamfer.', over);
       }
     }
-    // 3) thin walls, tiny details and narrow gaps. From a sample of surface spots we shoot a short ray into
-    // the model (how thick is it here?) and one out of it (how wide is the gap?). `unit` is model size per millimeter.
-    var mmU = unit || 1, thr = 1.2 * mmU, nozzle = 0.4 * mmU, zmax = 0;
-    for (i = 0; i < n * 3; i++) if (m[i * 3 + 2] > zmax) zmax = m[i * 3 + 2];
-    var cs = Math.max(thr * 1.5, Math.max(sx, sy, zmax) / 40), gnx = Math.ceil(sx / cs) + 2, gny = Math.ceil(sy / cs) + 2, g3 = new Map();
+
+    // 6) bed contact and stability
+    var contactTris = [], contact = 0, tol = 0.05 * mmU;
     for (t = 0; t < n; t++) {
-      o = t * 9;
-      var ix0 = Math.floor((Math.min(m[o], m[o + 3], m[o + 6]) - minx) / cs), ix1 = Math.floor((Math.max(m[o], m[o + 3], m[o + 6]) - minx) / cs);
-      var iy0 = Math.floor((Math.min(m[o + 1], m[o + 4], m[o + 7]) - miny) / cs), iy1 = Math.floor((Math.max(m[o + 1], m[o + 4], m[o + 7]) - miny) / cs);
-      var iz0 = Math.floor(Math.min(m[o + 2], m[o + 5], m[o + 8]) / cs), iz1 = Math.floor(Math.max(m[o + 2], m[o + 5], m[o + 8]) / cs);
+      oo = t * 9;
+      if (nz[t] < -0.9 && m[oo + 2] < tol && m[oo + 5] < tol && m[oo + 8] < tol) { contactTris.push(t); contact += area[t]; }
+    }
+    var contactMm = contact / (mmU * mmU), footprint = X * Y;
+    res.metrics.contact = contactMm;
+    if (closed) {
+      if (contactMm < 1e-6) {
+        add('flatbase', 'warn', 2, 'No flat bottom', 'No flat bottom',
+          'The model has no flat side resting on the bed, so it may roll or shift while printing.',
+          'Turn the model onto a flat side, cut a flat base into it, or print with a brim and supports.', null);
+      } else if (contactMm < 20 || contactMm < footprint * 0.03) {
+        add('contact', 'warn', 2, 'Small contact with the bed', 'Small contact with the bed',
+          'Only about ' + r1(contactMm) + ' mm² of the model touches the bed. Prints with a tiny base can pop off the bed halfway through.',
+          'Add a brim in your slicer, make the base wider, or turn the model onto a larger flat side.', contactTris);
+      }
+      var minSide = Math.min(X, Y);
+      if (minSide > 0 && Z / minSide > 5) {
+        add('tall', Z / minSide > 8 ? 'warn' : 'info', 2, 'Tall and narrow', 'Tall and narrow',
+          'The model is ' + r1(Z) + ' mm tall but only ' + r1(minSide) + ' mm wide at its base. Tall thin prints can wobble or snap off while the printer moves.',
+          'Add a brim, slow the print down, make the base wider, or lay the model on its side.', null);
+      }
+    }
+
+    // 7) thin walls, tiny details and narrow gaps. From a sample of surface spots we shoot a short ray into the model
+    // (how thick is it here?) and one out of it (how wide is the gap?).
+    var thr = thinThr * mmU, nozzle = noz * mmU;
+    var cs = Math.max(thr * 1.5, dimMax / 40), gnx = Math.ceil(sx / cs) + 2, gny = Math.ceil(sy / cs) + 2, g3 = new Map();
+    for (t = 0; t < n; t++) {
+      oo = t * 9;
+      var ix0 = Math.floor((Math.min(m[oo], m[oo + 3], m[oo + 6]) - minx) / cs), ix1 = Math.floor((Math.max(m[oo], m[oo + 3], m[oo + 6]) - minx) / cs);
+      var iy0 = Math.floor((Math.min(m[oo + 1], m[oo + 4], m[oo + 7]) - miny) / cs), iy1 = Math.floor((Math.max(m[oo + 1], m[oo + 4], m[oo + 7]) - miny) / cs);
+      var iz0 = Math.floor(Math.min(m[oo + 2], m[oo + 5], m[oo + 8]) / cs), iz1 = Math.floor(Math.max(m[oo + 2], m[oo + 5], m[oo + 8]) / cs);
       for (var gz = iz0; gz <= iz1; gz++) for (var gy2 = iy0; gy2 <= iy1; gy2++) for (var gx2 = ix0; gx2 <= ix1; gx2++) {
         var ck = (gz * gny + gy2) * gnx + gx2, arr = g3.get(ck); if (arr) arr.push(t); else g3.set(ck, [t]);
       }
     }
     var stamp = new Int32Array(n).fill(-1), rayId = 0;
-    // nearest surface along a ray, up to maxd, ignoring triangles that touch t
-    function cast(t, ox, oy, oz, dx, dy, dz, maxd) {
+    function cast(t, ox, oy, oz, dx, dy, dz, maxd) {   // nearest surface along a ray, ignoring triangles that touch t
       rayId++;
-      var c0 = centroid(t), ex = ox + dx * maxd, ey = oy + dy * maxd, ez = oz + dz * maxd;
+      var ex = ox + dx * maxd, ey = oy + dy * maxd, ez = oz + dz * maxd;
       var lx = Math.max(0, Math.floor((Math.min(ox, ex) - minx) / cs)), hx = Math.floor((Math.max(ox, ex) - minx) / cs);
       var ly = Math.max(0, Math.floor((Math.min(oy, ey) - miny) / cs)), hy = Math.floor((Math.max(oy, ey) - miny) / cs);
       var lz = Math.max(0, Math.floor(Math.min(oz, ez) / cs)), hz = Math.floor(Math.max(oz, ez) / cs);
@@ -905,8 +1126,8 @@
           var u = cell[ci]; if (u === t || stamp[u] === rayId) continue; stamp[u] = rayId;
           var w0 = vid[u * 3], w1 = vid[u * 3 + 1], w2 = vid[u * 3 + 2];
           if (w0 === v0 || w0 === v1 || w0 === v2 || w1 === v0 || w1 === v1 || w1 === v2 || w2 === v0 || w2 === v1 || w2 === v2) continue;
-          var q = u * 9, ax = m[q], ay = m[q + 1], az = m[q + 2];
-          var f1x = m[q + 3] - ax, f1y = m[q + 4] - ay, f1z = m[q + 5] - az, f2x = m[q + 6] - ax, f2y = m[q + 7] - ay, f2z = m[q + 8] - az;
+          var qq = u * 9, ax = m[qq], ay = m[qq + 1], az = m[qq + 2];
+          var f1x = m[qq + 3] - ax, f1y = m[qq + 4] - ay, f1z = m[qq + 5] - az, f2x = m[qq + 6] - ax, f2y = m[qq + 7] - ay, f2z = m[qq + 8] - az;
           var px = dy * f2z - dz * f2y, py = dz * f2x - dx * f2z, pz = dx * f2y - dy * f2x, det = f1x * px + f1y * py + f1z * pz;
           if (Math.abs(det) < 1e-9) continue;
           var inv = 1 / det, tx = ox - ax, ty = oy - ay, tz = oz - az, uu = (tx * px + ty * py + tz * pz) * inv;
@@ -921,66 +1142,88 @@
     }
     var step = Math.max(1, Math.floor(n / 4000)), tested = 0, thin = [], tiny = [], gaps = [], pT = [], pY = [], pG = [], thinMin = 1e30, tinyMin = 1e30, gapMin = 1e30;
     for (t = 0; t < n; t += step) {
-      if (area[t] <= 0) continue;
-      o = t * 9;
-      var e1x = m[o + 3] - m[o], e1y = m[o + 4] - m[o + 1], e1z = m[o + 5] - m[o + 2], e2x = m[o + 6] - m[o], e2y = m[o + 7] - m[o + 1], e2z = m[o + 8] - m[o + 2];
+      if (area[t] <= degenEps) continue;
+      oo = t * 9;
+      var e1x = m[oo + 3] - m[oo], e1y = m[oo + 4] - m[oo + 1], e1z = m[oo + 5] - m[oo + 2], e2x = m[oo + 6] - m[oo], e2y = m[oo + 7] - m[oo + 1], e2z = m[oo + 8] - m[oo + 2];
       var nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nzz = e1x * e2y - e1y * e2x, nl = Math.sqrt(nx * nx + ny * ny + nzz * nzz);
       nx /= nl; ny /= nl; nzz /= nl;
       var c0 = centroid(t), off = nozzle * 0.02;
       tested++;
-      var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thr);   // inward: wall thickness
+      var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thr);
       if (hit && hit.d + off <= thr) {
         var th = (hit.d + off) / mmU;
-        if (th < 0.4) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); }
+        if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); }
       }
-      var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, nozzle);     // outward: gap width
+      var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, nozzle);
       if (gap && gap.d + off < nozzle) { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, (gap.d + off) / mmU); }
     }
-    // loose specks: separate pieces smaller than 1 mm across
+    // separate pieces: tiny loose specks (under 1 mm) and ordinary extra bodies
     var par = new Int32Array(nid); for (i = 0; i < nid; i++) par[i] = i;
     function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
-    for (t = 0; t < n; t++) { var r0 = find(vid[t * 3]), r1 = find(vid[t * 3 + 1]), r2 = find(vid[t * 3 + 2]); par[r1] = r0; par[find(r2)] = find(r0); }
+    for (t = 0; t < n; t++) { var r0 = find(vid[t * 3]), r1x = find(vid[t * 3 + 1]); par[r1x] = r0; par[find(vid[t * 3 + 2])] = find(r0); }
     var box = new Map(), root;
     for (t = 0; t < n; t++) {
       root = find(vid[t * 3]); var bb = box.get(root);
       if (!bb) { bb = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], tris: [] }; box.set(root, bb); }
       bb.tris.push(t);
-      for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], ax2 = k % 3; if (cv < bb.lo[ax2]) bb.lo[ax2] = cv; if (cv > bb.hi[ax2]) bb.hi[ax2] = cv; }
+      for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], axx = k % 3; if (cv < bb.lo[axx]) bb.lo[axx] = cv; if (cv > bb.hi[axx]) bb.hi[axx] = cv; }
     }
-    var specks = [];
-    if (box.size > 1) box.forEach(function (bb) {
-      if (Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]) < 1 * mmU) bb.tris.forEach(function (t) { specks.push(t); res.flags[t] = 1; });
+    var specks = [], bodies = 0;
+    box.forEach(function (bb) {
+      if (Math.max(bb.hi[0] - bb.lo[0], bb.hi[1] - bb.lo[1], bb.hi[2] - bb.lo[2]) < 1 * mmU) specks = specks.concat(bb.tris); else bodies++;
     });
+    res.metrics.bodies = bodies;
 
     var enough = function (list) { return list.length >= 3 && list.length >= tested * 0.015; };
-    var uTxt = ' (your model units are set to ' + (uname || 'millimeters') + ', which you can change with the Units menu)';
-    function mark(list, part) { list.forEach(function (t, j) { res.flags[t] = 1; res.flags[part[j]] = 1; }); }
-    if (enough(tiny)) mark(tiny, pY); if (enough(gaps)) mark(gaps, pG); if (enough(thin)) mark(thin, pT);
-    var smallParts = [];
-    if (enough(tiny)) smallParts.push('features only about ' + Math.max(0.05, Math.round(tinyMin * 100) / 100) + ' mm thick');
-    if (enough(gaps)) smallParts.push('gaps only about ' + Math.max(0.05, Math.round(gapMin * 100) / 100) + ' mm wide');
-    if (specks.length) smallParts.push('tiny loose pieces');
-    var extra = [], focus = [];
+    var smallParts = [], smallTris = [];
+    if (enough(tiny)) { smallParts.push('features only about ' + Math.max(0.05, Math.round(tinyMin * 100) / 100) + ' mm thick'); smallTris = smallTris.concat(tiny, pY); }
+    if (enough(gaps)) { smallParts.push('gaps only about ' + Math.max(0.05, Math.round(gapMin * 100) / 100) + ' mm wide'); smallTris = smallTris.concat(gaps, pG); }
+    if (specks.length) { smallParts.push('tiny loose pieces'); smallTris = smallTris.concat(specks); }
     if (smallParts.length) {
-      extra.push({ short: 'Details too small to print', title: 'Warning! Small details',
-        text: 'This model has ' + smallParts.join(', ') + ', shown in red. A standard 0.4 mm nozzle can’t print details that small, so they may be missing, merged together or left floating' + uTxt + '. Make small details at least 0.4 mm, or leave them out.' });
-      focus = focus.concat(enough(tiny) ? tiny : [], enough(gaps) ? gaps : [], specks);
+      add('small', 'warn', 1, 'Details too small to print', 'Details too small to print',
+        'This model has ' + smallParts.join(', ') + ', shown in red. A ' + noz + ' mm nozzle can’t print details that small, so they may be missing, merged together or left floating.',
+        'Make small details at least ' + noz + ' mm (ideally ' + r1(noz * 2) + ' mm), widen narrow gaps, delete loose specks, or pick a smaller nozzle in Print settings.', smallTris);
     }
     if (enough(thin)) {
-      extra.push({ short: 'Thin walls may not print', title: 'Warning! Thin walls',
-        text: 'Some walls are thinner than about 1.2 mm (the thinnest is around ' + Math.max(0.1, Math.round(thinMin * 10) / 10) + ' mm), shown in red. Thin walls can snap or print with gaps. Make them at least 1.2 mm thick, about three lines of plastic from a standard nozzle' + uTxt + '.' });
-      if (!focus.length) focus = thin;
+      add('thin', 'warn', 1, 'Thin walls', 'Thin walls may not print',
+        'Some walls are thinner than about ' + r1(thinThr) + ' mm (the thinnest is around ' + Math.max(0.1, Math.round(thinMin * 10) / 10) + ' mm), shown in red. Thin walls can snap or print with gaps.',
+        'Make them at least ' + r1(thinThr) + ' mm thick, which is about three lines of plastic from a ' + noz + ' mm nozzle. In your CAD program, increase the wall or shell thickness.', thin.concat(pT));
     }
-    if (extra.length) {
-      var more = extra.map(function (x) { return x.text; });
-      if (res.w) res.w.text += ' Also: ' + more.join(' Also: ');
-      else { res.w = { short: extra[0].short, title: extra.length > 1 ? 'Warning! Small details and thin walls' : extra[0].title, text: more.join(' Also: ') }; res.anchors.w = spot(focus); }
+    if (bodies > 1) {
+      add('bodies', 'info', 2, 'Several separate parts', 'Several separate parts',
+        'The file contains ' + bodies + ' parts that don’t touch each other. That is fine for printing a set, but double check it is what you meant.',
+        'If it should be one part, join them in your CAD program. If they are meant to be separate, leave them and print them together.', null);
     }
+
+    // ordering, boxes, score
+    var rank = { err: 0, warn: 1, info: 2 };
+    res.issues.sort(function (x, y) { return rank[x.kind] - rank[y.kind]; });
+    res.issues.forEach(function (it) { if (!res.w && it.color === 1) res.w = it; if (!res.s && it.color === 2) res.s = it; });
+    var score = 100, errs = 0;
+    res.issues.forEach(function (it) { if (it.kind === 'err') { errs++; score -= errs <= 2 ? 30 : 10; } else if (it.kind === 'warn') score -= 10; else score -= 3; });
+    res.score = Math.max(0, Math.min(100, score)); res.errors = errs;
+    res.verdict = errs ? 'Not ready to print' : res.score >= 90 ? 'Ready to print' : 'Almost ready';
+
+    // estimates
+    var shell = Math.min(volMm, areaMm * 0.9), mat = o.density || 1.24;
+    var plastic = shell + Math.max(0, volMm - shell) * 0.2;          // 2 perimeters, 4 top and bottom layers, 20% infill
+    res.metrics.grams = plastic / 1000 * mat;
+    var flow = 5 * (noz / 0.4) * (noz / 0.4) * ((o.layer || 0.2) / 0.2);
+    res.metrics.minutes = plastic / flow * 1.15 / 60;
     return res;
   }
 
+  // which triangles to paint: red for warnings and errors, yellow for suggestions. focus = one issue id, or null for all.
+  function flagsFor(res, n, focus) {
+    var f = new Uint8Array(n);
+    res.issues.forEach(function (it) {
+      if (focus && it.id !== focus) return;
+      for (var j = 0; j < it.tris.length; j++) { var t = it.tris[j]; if (!f[t] || it.color === 1) f[t] = it.color; }
+    });
+    return f;
+  }
+
   /* ---------- state ---------- */
-  var MM = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 }, UNAME = { mm: 'millimeters', cm: 'centimeters', m: 'meters', in: 'inches', ft: 'feet' };
   var COLORS = ['#EB5406', '#FF991C', '#D21404', '#FF5350', '#1F8A8A', '#6B4FBB'];
   var projects = [], curP = -1, acct = null, view = 'home', authMode = 'in', chosen = null;
 
@@ -1006,7 +1249,7 @@
   /* ---------- routing ---------- */
   function bubbleFor() {
     if (view === 'project') return projects[curP] ? 'If there is any problem, tell me!' : 'There’s nothing here! Click on the + to create a new project!';
-    if (view === 'profile') return '';
+    if (view === 'profile' || view === 'archive') return '';
     return 'Introduction to AI';
   }
   function setBubble() {
@@ -1014,18 +1257,19 @@
     var cp = projects[curP];
     if (cp && view === 'project') {
       if (cp.unreadable) t = 'I couldn’t read that file fully, so this is a stand-in shape. Try exporting it again!';
-      else if (cp.res && !cp.res.w && !cp.res.s) t = 'Good news! I didn’t find any holes, overhangs or thin walls. Ask me if you want a second look!';
+      else if (cp.res && !cp.res.issues.length) t = 'Good news! I didn’t find any problems. Ask me if you want a second look!';
     }
     bubbleText.textContent = t;
     bubble.hidden = !t || !chat.hidden;
   }
   function setView(name) {
     view = name;
-    homeView.hidden = name !== 'home'; projectView.hidden = name !== 'project'; profileView.hidden = name !== 'profile';
+    homeView.hidden = name !== 'home'; projectView.hidden = name !== 'project'; profileView.hidden = name !== 'profile'; $('archiveView').hidden = name !== 'archive';
     tabs.forEach(function (t) { if (t.dataset.view === name) t.setAttribute('aria-current', 'page'); else t.removeAttribute('aria-current'); });
     if (name === 'profile') profBtn.setAttribute('aria-current', 'page'); else profBtn.removeAttribute('aria-current');
     if (name === 'project') refreshProject();
     if (name === 'profile') renderProfile();
+    if (name === 'archive') renderArchive();
     setBubble(); window.scrollTo(0, 0);
     viewers.forEach(function (v) { v.dirty = true; });
   }
@@ -1069,7 +1313,7 @@
       .then(function (r) {
         setTimeout(function () {
           progress.classList.remove('on');
-          projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad, units: r.m.units || $('unitSel').value });
+          projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad, units: r.m.units || $('unitSel').value, when: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) });
           curP = projects.length - 1;
           setView('project');
         }, Math.max(0, 1800 - (Date.now() - t0)));
@@ -1088,6 +1332,13 @@
   ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
   drop.addEventListener('drop', function (e) { handle(e.dataTransfer.files[0]); });
   file.addEventListener('change', function () { handle(file.files[0]); file.value = ''; });
+
+  ['dragover', 'drop'].forEach(function (t) { window.addEventListener(t, function (e) { if (e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], 'Files') >= 0) e.preventDefault(); }); });
+  window.addEventListener('drop', function (e) {
+    if (e.target === drop || drop.contains(e.target) || !e.dataTransfer || !e.dataTransfer.files.length) return;
+    if (promptDlg.open || wrongDlg.open) return;
+    handle(e.dataTransfer.files[0]);
+  });
 
   // plus: new project. A guest who already used their free model is asked to make an account first.
   $('plusBtn').addEventListener('click', function () {
@@ -1118,63 +1369,146 @@
     e.preventDefault();
     var inp = $('chatInput'), t = inp.value.trim(); if (!t) return;
     say('user', t); inp.value = '';
-    setTimeout(function () {
-      var p = projects[curP];
-      say('tiger', p ? 'I’m still learning! For now, tap the arrow and click a highlighted part of “' + p.name + '” to see why it might not print well.'
-                     : 'I’m still learning! Click the + to upload an STL or 3MF file and I’ll check it for you.');
-    }, 500);
+    setTimeout(function () { say('tiger', tigerAnswer(t)); }, 450);
   });
   say('tiger', 'Hi! I’m Tiger AI. Ask me anything about your 3D model!');
 
   /* ---------- My Project ---------- */
   var canvas = $('viewCanvas'), stage = $('stagebox');
   var viewer = new Viewer(canvas, { zoomable: true });
-  var sugBox = $('sugBox'), warnBox = $('warnBox'), detail = $('detail'), projTag = $('projTag'), projList = $('projList');
-  function showDetail(k) {
-    var p = projects[curP], d = p && p.res && p.res[k]; if (!d) return;
-    detail.className = 'detail ' + (k === 'w' ? 'warn' : 'sug');
-    $('detailTitle').textContent = d.title; $('detailText').textContent = d.text; detail.hidden = false;
+  var sugBox = $('sugBox'), warnBox = $('warnBox'), detail = $('detail'), projTag = $('projTag'), projList = $('projList'), report = $('report');
+  var focusId = null, runToken = 0;
+
+  function cur() { return projects[curP] || null; }
+  function optsFor(p) {
+    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer };
+  }
+  function toast(msg) {
+    var t = $('toast'); t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.h); toast.h = setTimeout(function () { t.hidden = true; }, 5200);
+  }
+  function showDetail(it) {
+    if (!it) return;
+    detail.className = 'detail ' + (it.color === 1 ? 'warn' : 'sug');
+    $('detailTitle').textContent = it.title; $('detailText').textContent = it.text;
+    $('detailFix').textContent = it.fix || ''; $('detailFixWrap').hidden = !it.fix;
+    detail.hidden = false;
+  }
+  function issueById(p, id) { return p && p.res ? p.res.issues.filter(function (x) { return x.id === id; })[0] : null; }
+
+  function applyResult(p) {
+    var res = p.res;
+    viewer.flags = flagsFor(res, viewer.n, focusId);
+    var fi = focusId && issueById(p, focusId);
+    viewer.anchors = fi ? { f: fi.anchor } : { w: res.w && res.w.anchor, s: res.s && res.s.anchor };
+    warnBox.hidden = !!fi || !(res.w && res.w.anchor); sugBox.hidden = !!fi || !(res.s && res.s.anchor);
+    if (!warnBox.hidden) warnBox.innerHTML = '<b>Warning!</b>' + res.w.short;
+    if (!sugBox.hidden) sugBox.innerHTML = '<b>Suggestion:</b>' + res.s.short;
+    viewer.dirty = true;
+  }
+  function fmtTime(min) { if (min < 1) return 'under a minute'; var h = Math.floor(min / 60), m = Math.round(min % 60); return h ? h + ' h ' + m + ' min' : m + ' min'; }
+  function r1(x) { return (Math.round(x * 10) / 10).toString(); }
+  function renderReport(p) {
+    var res = p.res, color = res.score >= 90 ? '#2E9E5B' : res.score >= 60 ? '#FF991C' : '#D21404';
+    report.hidden = false;
+    $('scoreRing').style.setProperty('--p', res.score); $('scoreRing').style.setProperty('--c', color);
+    $('scoreNum').textContent = res.score;
+    $('scoreVerdict').textContent = res.verdict;
+    $('scoreSub').textContent = res.issues.length ? res.issues.length + ' thing' + (res.issues.length === 1 ? '' : 's') + ' to look at' : 'No problems found';
+    var ul = $('issueList'); ul.innerHTML = '';
+    if (!res.issues.length) {
+      var li0 = document.createElement('li'); li0.className = 'allgood'; li0.textContent = 'I checked for holes, flipped faces, thin walls, small details, overhangs, bed contact and size, and found nothing wrong. Nice model!'; ul.appendChild(li0);
+    }
+    res.issues.forEach(function (it) {
+      var li = document.createElement('li'), b = document.createElement('button');
+      b.type = 'button'; b.className = 'issue' + (focusId === it.id ? ' on' : ''); b.setAttribute('aria-pressed', String(focusId === it.id));
+      b.innerHTML = '<span class="sev ' + it.kind + '" aria-hidden="true">' + (it.kind === 'info' ? 'i' : '!') + '</span><span><b></b><small></small></span>';
+      b.querySelector('b').textContent = it.title; b.querySelector('small').textContent = it.kind === 'err' ? 'Must fix' : it.kind === 'warn' ? 'Should fix' : 'Worth a look';
+      b.addEventListener('click', function () { focusIssue(focusId === it.id ? null : it.id); });
+      li.appendChild(b); ul.appendChild(li);
+    });
+    var M = res.metrics, rows = [
+      ['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'],
+      ['Volume', r1(M.volume / 1000) + ' cm³'],
+      ['Surface', r1(M.area / 100) + ' cm²'],
+      ['Triangles', M.tris.toLocaleString()],
+      ['Parts', String(M.bodies || 1)],
+      ['Fits printer', M.fits === 'yes' ? 'Yes' : M.fits === 'turn' ? 'If turned 90°' : 'No'],
+      ['Plastic (est.)', r1(M.grams) + ' g ' + settings.material],
+      ['Print time (est.)', fmtTime(M.minutes)]
+    ];
+    var dl = $('infoList'); dl.innerHTML = '';
+    rows.forEach(function (r) { var dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd); });
+    $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
+    $('fixBtn').disabled = !p.mesh;
+  }
+  function focusIssue(id) {
+    var p = cur(); if (!p || !p.res) return;
+    focusId = id; applyResult(p); renderReport(p);
+    if (id) showDetail(issueById(p, id)); else detail.hidden = true;
+  }
+  function syncSettings() {
+    $('printerSel').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
+    $('bedX').value = settings.bed[0]; $('bedY').value = settings.bed[1]; $('bedZ').value = settings.bed[2];
+    $('nozzleSel').value = String(settings.nozzle); $('materialSel').value = settings.material; $('layerSel').value = String(settings.layer);
+    $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
+    var p = cur(); if (p) $('unitSel2').value = p.units || 'mm';
   }
   function refreshProject() {
-    var p = projects[curP];
+    var p = cur();
+    focusId = null; detail.hidden = true; projList.hidden = true; $('toast').hidden = true;
     $('projTagName').textContent = p ? p.name : 'Project Name';
     projTag.classList.toggle('empty', !p);
-    viewer.marks = !!p; viewer.setMesh(p ? p.mesh : null);
-    if (p && viewer.mesh && !p.res) p.res = p.unreadable ? { w: null, s: null, flags: null, anchors: { w: null, s: null } } : analyze(viewer.mesh, viewer.n, viewer.unit / MM[p.units || 'mm'], UNAME[p.units || 'mm']);
-    viewer.flags = p && p.res ? p.res.flags : null; viewer.anchors = p && p.res ? p.res.anchors : null;
-    warnBox.hidden = !(p && p.res && p.res.w); sugBox.hidden = !(p && p.res && p.res.s);
-    if (!warnBox.hidden) warnBox.innerHTML = '<b>Warning!</b>' + p.res.w.short;
-    if (!sugBox.hidden) sugBox.innerHTML = '<b>Suggestion:</b>' + p.res.s.short;
-    detail.hidden = true; projList.hidden = true;
-    $('unitBox').hidden = !p || !!p.unreadable; if (p) $('unitSel2').value = p.units || 'mm';
+    viewer.marks = true; $('marksBtn').setAttribute('aria-pressed', 'true');
+    viewer.setMesh(p ? p.mesh : null); viewer.flags = null; viewer.anchors = null;
+    warnBox.hidden = sugBox.hidden = true;
+    stage.classList.toggle('has-report', !!p && !p.unreadable);
+    report.hidden = !(p && !p.unreadable);
+    if (!p || p.unreadable) { report.hidden = true; return; }
+    p.norm = viewer.mesh; p.s = viewer.unit;
+    syncSettings();
+    if (p.res) { applyResult(p); renderReport(p); return; }
+    $('scoreNum').textContent = '…'; $('scoreVerdict').textContent = 'Checking your model…'; $('scoreSub').textContent = '';
+    $('issueList').innerHTML = ''; $('infoList').innerHTML = '';
+    var tok = ++runToken;
+    setTimeout(function () {
+      if (tok !== runToken || cur() !== p) return;
+      p.res = analyze(p.norm, viewer.n, optsFor(p));
+      applyResult(p); renderReport(p); setBubble();
+    }, 40);
   }
-  $('unitSel2').addEventListener('change', function () {
-    var p = projects[curP]; if (!p) return;
-    p.units = this.value; p.res = null; refreshProject(); setBubble();
-  });
-  $('detailX').addEventListener('click', function () { detail.hidden = true; });
-  sugBox.addEventListener('click', function () { showDetail('s'); });
-  warnBox.addEventListener('click', function () { showDetail('w'); });
+  function recheck() { projects.forEach(function (p) { p.res = null; }); refreshProject(); }
+
+  $('detailX').addEventListener('click', function () { detail.hidden = true; if (focusId) focusIssue(null); });
+  sugBox.addEventListener('click', function () { var p = cur(); if (p && p.res) showDetail(p.res.s); });
+  warnBox.addEventListener('click', function () { var p = cur(); if (p && p.res) showDetail(p.res.w); });
   viewer.onTap = function (x, y) {
-    if (!viewer.mesh) return;
+    var p = cur(); if (!viewer.mesh || !p || !p.res) return;
     var best = null, bd = 40;
-    ['w', 's'].forEach(function (k) {
-      var p = viewer.screen[k]; if (!p) return;
-      var d = Math.hypot(p[0] - x, p[1] - y); if (d < bd) { bd = d; best = k; }
+    ['w', 's', 'f'].forEach(function (k) {
+      var q = viewer.screen[k]; if (!q) return;
+      var d = Math.hypot(q[0] - x, q[1] - y); if (d < bd) { bd = d; best = k; }
     });
-    if (best) showDetail(best);
+    if (best) showDetail(best === 'f' ? issueById(p, focusId) : p.res[best]);
   };
   viewer.onDraw = function (ctx) {
-    if (!viewer.mesh) return;
+    var p = cur(); if (!viewer.mesh || !p || !p.res || !viewer.marks) return;
     var cr = canvas.getBoundingClientRect();
+    if (focusId && viewer.screen.f) {
+      var f = viewer.screen.f; ctx.strokeStyle = '#1B1F27'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f[0], f[1], 13, 0, 7); ctx.stroke();
+      ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(f[0], f[1], 5, 0, 7); ctx.fill(); ctx.stroke();
+      return;
+    }
     [[sugBox, 's', '#FFD700'], [warnBox, 'w', '#D21404']].forEach(function (a) {
-      var p = viewer.screen[a[1]]; if (!p || a[0].hidden) return;
+      var q = viewer.screen[a[1]]; if (!q || a[0].hidden) return;
       var r = a[0].getBoundingClientRect();
       ctx.strokeStyle = '#1B1F27'; ctx.lineWidth = 2.5; ctx.beginPath();
-      ctx.moveTo(r.left + r.width / 2 - cr.left, r.bottom - cr.top); ctx.lineTo(p[0], p[1]); ctx.stroke();
-      ctx.fillStyle = a[2]; ctx.beginPath(); ctx.arc(p[0], p[1], 6, 0, 7); ctx.fill(); ctx.stroke();
+      ctx.moveTo(r.left + r.width / 2 - cr.left, r.bottom - cr.top); ctx.lineTo(q[0], q[1]); ctx.stroke();
+      ctx.fillStyle = a[2]; ctx.beginPath(); ctx.arc(q[0], q[1], 6, 0, 7); ctx.fill(); ctx.stroke();
     });
   };
+
+  // toolbar: select / spin, standard views, wireframe, show or hide highlights
   var arrowBtn = $('arrowBtn'), spinBtn = $('spinBtn');
   function setTool(spin) {
     viewer.auto = spin && !reduce;
@@ -1183,6 +1517,17 @@
   }
   arrowBtn.addEventListener('click', function () { setTool(false); });
   spinBtn.addEventListener('click', function () { setTool(spinBtn.getAttribute('aria-pressed') !== 'true'); });
+  var VIEWS = { iso: [0.7, 0.6], front: [0, 0.04], top: [0, 1.45], side: [1.5708, 0.04] };
+  document.querySelectorAll('[data-viewpreset]').forEach(function (b) {
+    b.addEventListener('click', function () { var v = VIEWS[b.dataset.viewpreset]; setTool(false); viewer.yaw = v[0]; viewer.pitch = v[1]; viewer.zoom = 1; viewer.dirty = true; });
+  });
+  $('wireBtn').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(on)); viewer.wire = on; viewer.dirty = true;
+  });
+  $('marksBtn').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(on)); viewer.marks = on; viewer.dirty = true;
+    var p = cur(); if (p && p.res && !focusId) { if (on) applyResult(p); else warnBox.hidden = sugBox.hidden = true; }
+  });
   projTag.addEventListener('click', function () {
     projList.innerHTML = '';
     projects.forEach(function (p, i) {
@@ -1196,6 +1541,151 @@
     projList.appendChild(n);
     projList.hidden = !projList.hidden;
   });
+
+  // print settings
+  Object.keys(PRINTERS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = PRINTERS[k].name; $('printerSel').appendChild(o); });
+  $('printerSel').addEventListener('change', function () {
+    settings.printer = this.value; if (PRINTERS[this.value].bed) settings.bed = PRINTERS[this.value].bed.slice();
+    saveSettings(); syncSettings(); recheck();
+  });
+  ['bedX', 'bedY', 'bedZ'].forEach(function (id, i) {
+    $(id).addEventListener('change', function () { var v = Math.max(10, Math.min(2000, +this.value || 200)); settings.bed[i] = v; saveSettings(); syncSettings(); recheck(); });
+  });
+  $('nozzleSel').addEventListener('change', function () { settings.nozzle = +this.value; saveSettings(); recheck(); });
+  $('materialSel').addEventListener('change', function () { settings.material = this.value; saveSettings(); recheck(); });
+  $('layerSel').addEventListener('change', function () { settings.layer = +this.value; saveSettings(); recheck(); });
+  $('angleRange').addEventListener('input', function () { $('angleOut').textContent = this.value + '°'; });
+  $('angleRange').addEventListener('change', function () { settings.overhang = +this.value; saveSettings(); recheck(); });
+  $('unitSel2').addEventListener('change', function () { var p = cur(); if (!p) return; p.units = this.value; p.res = null; refreshProject(); setBubble(); });
+
+  // best orientation: try six ways of laying the model down and keep the one with the least overhang
+  function rotate(src, kind) {
+    var out = new Float32Array(src.length), i, x, y, z;
+    for (i = 0; i < src.length; i += 3) {
+      x = src[i]; y = src[i + 1]; z = src[i + 2];
+      if (kind === 1) { out[i] = x; out[i + 1] = -z; out[i + 2] = y; }
+      else if (kind === 2) { out[i] = x; out[i + 1] = z; out[i + 2] = -y; }
+      else if (kind === 3) { out[i] = z; out[i + 1] = y; out[i + 2] = -x; }
+      else if (kind === 4) { out[i] = -z; out[i + 1] = y; out[i + 2] = x; }
+      else if (kind === 5) { out[i] = x; out[i + 1] = -y; out[i + 2] = -z; }
+      else { out[i] = x; out[i + 1] = y; out[i + 2] = z; }
+    }
+    return out;
+  }
+  function orientScore(mesh) {
+    var n = Math.floor(mesh.length / 9), zmin = 1e30, zmax = -1e30, i, step = Math.max(1, Math.floor(n / 20000));
+    for (i = 2; i < mesh.length; i += 3) { if (mesh[i] < zmin) zmin = mesh[i]; if (mesh[i] > zmax) zmax = mesh[i]; }
+    var tol = (zmax - zmin) * 0.003, lim = -Math.sin(settings.overhang * Math.PI / 180), over = 0, contact = 0, tot = 0;
+    for (i = 0; i < n; i += step) {
+      var o = i * 9, ux = mesh[o + 3] - mesh[o], uy = mesh[o + 4] - mesh[o + 1], uz = mesh[o + 5] - mesh[o + 2], wx = mesh[o + 6] - mesh[o], wy = mesh[o + 7] - mesh[o + 1], wz = mesh[o + 8] - mesh[o + 2];
+      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz), a = len / 2; if (len < 1e-12) continue;
+      tot += a; var nzv = cz / len;
+      if (nzv < lim) { if (Math.max(mesh[o + 2], mesh[o + 5], mesh[o + 8]) - zmin <= tol) contact += a; else over += a; }
+    }
+    return { over: over / (tot || 1), contact: contact / (tot || 1), height: zmax - zmin };
+  }
+  $('orientBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    if (p.orig) { p.mesh = p.orig; p.orig = null; p.res = null; refreshProject(); toast('Back to the orientation from your file.'); return; }
+    var best = 0, bs = 1e30, before = null;
+    for (var k = 0; k < 6; k++) {
+      var s = orientScore(rotate(p.mesh, k)), val = s.over - 0.15 * Math.min(s.contact, 0.3);
+      if (k === 0) before = val;
+      if (val < bs - 1e-9) { bs = val; best = k; }
+    }
+    if (best === 0 || bs > before - 0.01) { toast('Your model is already lying in about the best way of the six I tried.'); return; }
+    p.orig = p.mesh; p.mesh = rotate(p.mesh, best); p.res = null; refreshProject();
+    toast('I turned the model to cut down on overhangs. Press the button again to undo.');
+  });
+
+  // downloads
+  function save(blob, name) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function safeName(p) { return (p.name || 'model').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'model'; }
+  $('fixBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    var m = p.mesh, n = Math.floor(m.length / 9), flip = !!issueById(p, 'inverted'), keep = [], seen = new Set(), i;
+    for (i = 0; i < n; i++) {
+      var o = i * 9, ux = m[o + 3] - m[o], uy = m[o + 4] - m[o + 1], uz = m[o + 5] - m[o + 2], wx = m[o + 6] - m[o], wy = m[o + 7] - m[o + 1], wz = m[o + 8] - m[o + 2];
+      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx;
+      if (Math.sqrt(cx * cx + cy * cy + cz * cz) < 1e-12) continue;
+      var keys = [0, 3, 6].map(function (k) { return m[o + k] + ',' + m[o + k + 1] + ',' + m[o + k + 2]; }).sort().join('|');
+      if (seen.has(keys)) continue; seen.add(keys); keep.push(i);
+    }
+    var buf = new ArrayBuffer(84 + keep.length * 50), dv = new DataView(buf);
+    new TextEncoder().encodeInto('MeshCheck fixed', new Uint8Array(buf, 0, 80)); dv.setUint32(80, keep.length, true);
+    keep.forEach(function (t, j) {
+      var o = t * 9, v = [[m[o], m[o + 1], m[o + 2]], [m[o + 3], m[o + 4], m[o + 5]], [m[o + 6], m[o + 7], m[o + 8]]];
+      if (flip) v = [v[0], v[2], v[1]];
+      var ux = v[1][0] - v[0][0], uy = v[1][1] - v[0][1], uz = v[1][2] - v[0][2], wx = v[2][0] - v[0][0], wy = v[2][1] - v[0][1], wz = v[2][2] - v[0][2];
+      var nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nzv = ux * wy - uy * wx, l = Math.sqrt(nx * nx + ny * ny + nzv * nzv) || 1, q = 84 + j * 50;
+      dv.setFloat32(q, nx / l, true); dv.setFloat32(q + 4, ny / l, true); dv.setFloat32(q + 8, nzv / l, true);
+      for (var a = 0; a < 3; a++) for (var b = 0; b < 3; b++) dv.setFloat32(q + 12 + a * 12 + b * 4, v[a][b], true);
+    });
+    save(new Blob([buf], { type: 'model/stl' }), safeName(p) + '-fixed.stl');
+    toast('Saved ' + safeName(p) + '-fixed.stl with ' + (n - keep.length) + ' duplicate or empty face' + (n - keep.length === 1 ? '' : 's') + ' removed' + (flip ? ' and all faces flipped' : '') + '. Holes can’t be filled automatically.');
+  });
+  $('reportBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    var r = p.res, M = r.metrics, L = [];
+    L.push('MeshCheck report: ' + p.name, 'File: ' + p.file, 'Checked: ' + new Date().toLocaleString(), '');
+    L.push('Printability: ' + r.score + '/100 (' + r.verdict + ')', '');
+    L.push('Settings: ' + PRINTERS[settings.printer].name.replace(/ \(.*/, '') + ' (' + settings.bed.join(' x ') + ' mm), ' + settings.nozzle + ' mm nozzle, ' + settings.material + ', ' + settings.layer + ' mm layers, overhang limit ' + settings.overhang + ' degrees, model units ' + UNAME[p.units || 'mm'], '');
+    L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated plastic: ' + r1(M.grams) + ' g', 'Estimated print time: ' + fmtTime(M.minutes), '');
+    if (p.info) L.push('About the part: ' + p.info, '');
+    L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
+    r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How to fix: ' + it.fix); });
+    L.push('', 'These checks are estimates. Always preview the model in your slicer before printing.');
+    save(new Blob([L.join('\n')], { type: 'text/plain' }), safeName(p) + '-report.txt');
+  });
+
+  /* ---------- My Archive ---------- */
+  function renderArchive() {
+    var box = $('archList'); box.innerHTML = '';
+    $('archEmpty').hidden = projects.length > 0;
+    projects.forEach(function (p, i) {
+      var c = document.createElement('div'); c.className = 'acard';
+      var sc = p.res ? p.res.score : null;
+      c.innerHTML = '<div class="aring"></div><div class="ameta"><b></b><small></small></div><div class="abtns"><button class="btn small" type="button">Open</button><button class="btn small alt" type="button">Remove</button></div>';
+      c.querySelector('b').textContent = p.name;
+      c.querySelector('small').textContent = p.file + ' · ' + (p.res ? (p.res.issues.length ? p.res.issues.length + ' to look at' : 'No problems') : 'Open to check') + ' · ' + p.when;
+      var ring = c.querySelector('.aring'); ring.textContent = sc == null ? '?' : sc;
+      ring.style.setProperty('--p', sc == null ? 0 : sc); ring.style.setProperty('--c', sc == null ? '#999' : sc >= 90 ? '#2E9E5B' : sc >= 60 ? '#FF991C' : '#D21404');
+      var bs = c.querySelectorAll('button');
+      bs[0].addEventListener('click', function () { curP = i; setView('project'); });
+      bs[1].addEventListener('click', function () { projects.splice(i, 1); curP = Math.min(curP, projects.length - 1); if (i < curP) curP--; renderArchive(); setBubble(); });
+      box.appendChild(c);
+    });
+  }
+
+  /* ---------- Tiger AI answers (rules based, from the real results) ---------- */
+  function tigerAnswer(q) {
+    q = q.toLowerCase();
+    var p = cur(), r = p && p.res, has = function () { for (var i = 0; i < arguments.length; i++) if (q.indexOf(arguments[i]) >= 0) return true; return false; };
+    var issue = function (id) { return r && issueById(p, id); };
+    if (has('hello', 'hi ', 'hey') && q.length < 12) return 'Hi! Ask me about your model, your settings, or how to fix something I found.';
+    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL or 3MF for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs, bed contact, tall thin shapes and whether it fits your printer. Ask me about any of them, or what to fix first.';
+    if (has('file', 'format', 'obj', 'step', 'upload', 'support stl')) return 'I can read STL (binary or text) and 3MF files. Export your design from your modeling program as STL or 3MF, then drop it on the home page or press the + button.';
+    if (has('unit', 'inch', 'millimet', 'scale', 'too big', 'too small')) return 'STL files don’t say what units they use, so I assume millimeters unless you change it in Print settings (3MF files tell me themselves). If your sizes look off by 25 or 10 times, switch the units.';
+    if (has('nozzle')) return 'Your nozzle is set to ' + settings.nozzle + ' mm. I treat anything smaller than that as too small to print, and walls under ' + r1(settings.nozzle * 3) + ' mm as thin. Change it in Print settings if you use a different one.';
+    if (has('material', 'pla', 'petg', 'abs', 'tpu', 'resin', 'filament type')) return 'Material only changes my weight estimate here (' + settings.material + '). For strength, PETG and ABS handle stress better than PLA, and thicker walls help most of all.';
+    if (!p) return 'Upload a model first (the + button) and I’ll check it for you!';
+    if (p.unreadable) return 'I couldn’t read that file, so I can’t check it. Try exporting it again as binary STL or 3MF.';
+    if (!r) return 'Give me a second, I’m still checking your model.';
+    if (has('score', 'ready', 'good', 'ok ', 'okay', 'print it', 'safe')) return 'Your score is ' + r.score + '/100: ' + r.verdict.toLowerCase() + '. ' + (r.issues.length ? 'Start with “' + r.issues[0].title + '”.' : 'I found nothing wrong, but always preview it in your slicer too.');
+    if (has('fix first', 'first', 'priority', 'what should', 'fix', 'problem', 'wrong', 'issue')) return r.issues.length ? 'Start with “' + r.issues[0].title + '”. ' + r.issues[0].fix : 'I didn’t find any problems in “' + p.name + '”.';
+    if (has('overhang', 'support')) { var o = issue('overhang'); return o ? o.text + ' ' + o.fix : 'I didn’t find overhangs beyond ' + settings.overhang + '° in your model, so it should print without supports. (You can change the angle in Print settings.)'; }
+    if (has('thin', 'wall', 'snap', 'break', 'strong', 'strength')) { var t = issue('thin') || issue('small'); return t ? t.text + ' ' + t.fix : 'I didn’t find thin walls. For stronger parts, make walls thicker than ' + r1(settings.nozzle * 3) + ' mm and print with more perimeters.'; }
+    if (has('hole', 'manifold', 'watertight', 'repair', 'gap', 'inside out', 'normal', 'flip')) { var h = issue('holes') || issue('overlap') || issue('inverted'); return h ? h.text + ' ' + h.fix : 'The surface of your model is closed and clean, with no holes or flipped faces.'; }
+    if (has('orient', 'rotate', 'turn', 'position', 'lay', 'flat')) return 'Press “Best orientation” in the panel and I’ll try six ways of laying your model down and pick the one with the least overhang. ' + (issue('flatbase') || issue('contact') ? 'Your bed contact is small right now, so that may help.' : '');
+    if (has('time', 'how long', 'hours')) return 'Rough guess: ' + fmtTime(r.metrics.minutes) + ' with a ' + settings.nozzle + ' mm nozzle and ' + settings.layer + ' mm layers. Your slicer will give the exact number.';
+    if (has('weight', 'grams', 'much plastic', 'cost', 'filament')) return 'About ' + r1(r.metrics.grams) + ' g of ' + settings.material + ' with 20% infill. Your slicer will have the exact figure.';
+    if (has('size', 'fit', 'bed', 'dimension', 'big')) return 'Your model is ' + r1(r.metrics.x) + ' × ' + r1(r.metrics.y) + ' × ' + r1(r.metrics.z) + ' mm. ' + (r.metrics.fits === 'yes' ? 'It fits your printer.' : r.metrics.fits === 'turn' ? 'It fits if you turn it 90° on the bed.' : 'It does not fit your printer’s ' + settings.bed.join(' × ') + ' mm bed, so scale it down or split it.');
+    if (has('brim', 'raft', 'adhesion', 'stick', 'warp')) return 'A brim helps tall, narrow or small-base models stay stuck to the bed. Your bed contact is about ' + r1(r.metrics.contact) + ' mm².';
+    return r.issues.length ? 'I’m not sure about that one, but here’s what matters most for “' + p.name + '”: ' + r.issues[0].title + '. Ask me how to fix it!' : 'I’m not sure about that one, but your model looks good! Try asking about the score, time, or weight.';
+  }
 
   /* ---------- My Profile (front-end only: nothing is saved on a server yet) ---------- */
   function renderProfile() {
