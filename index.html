@@ -1516,8 +1516,12 @@
     var rank = { err: 0, warn: 1, info: 2 };
     res.issues.sort(function (x, y) { return rank[x.kind] - rank[y.kind]; });
     res.issues.forEach(function (it) { if (!res.w && it.color === 1) res.w = it; if (!res.s && it.color === 2) res.s = it; });
-    var score = 100, errs = 0;
-    res.issues.forEach(function (it) { if (it.kind === 'err') { errs++; score -= errs <= 2 ? 30 : 10; } else if (it.kind === 'warn') score -= 10; else score -= 3; });
+    var score = 100, errs = 0, posCap = 20, posIds = { overhang: 1, bridge: 1, contact: 1, flatbase: 1, tall: 1, peel: 1 };
+    res.issues.forEach(function (it) {
+      var cost = it.kind === 'err' ? (++errs <= 2 ? 30 : 10) : it.kind === 'warn' ? 10 : 3;
+      if (posIds[it.id] && it.kind !== 'err') { cost = Math.min(cost, posCap); posCap -= cost; }   // overhang, bridge and bed-contact warnings come from one cause (how the part lies), so together they cost at most 20
+      score -= cost;
+    });
     res.score = Math.max(0, Math.min(100, score)); res.errors = errs; res.closed = closed; res.sliceable = !open;
     var warns = res.issues.some(function (it) { return it.kind === 'warn'; });
     res.verdict = errs ? 'Not ready to print' : (res.score >= 90 && !warns) ? 'Ready to print' : 'Almost ready';
@@ -1943,6 +1947,7 @@
     if (p.history) p.history.concat([{ file: p.file, score: res.score, n: res.issues.length, now: true }]).forEach(function (h, i) {
       var li = document.createElement('li'); li.textContent = 'Version ' + (i + 1) + ': ' + h.file + ', score ' + h.score + ', ' + (h.n ? h.n + ' thing' + (h.n === 1 ? '' : 's') + ' to look at' : 'no problems') + (h.now ? ' (this one)' : ''); vl.appendChild(li);
     });
+    if (p.history && p.history.length && p.diffs) { var lc = document.createElement('li'); lc.textContent = p.diffs.length ? 'What changed in the shape since the last version: ' + p.diffs.join(' ') : 'The shape looks the same as the last version.'; vl.appendChild(lc); }
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
     $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
     var fixable = res.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) || res.specks > 0;
@@ -1983,8 +1988,8 @@
     setTimeout(function () {
       if (tok !== runToken || cur() !== p) return;
       p.res = analyze(p.norm, viewer.n, optsFor(p));
-      applyResult(p); renderReport(p); setBubble(); cloudSave(p);
-      if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
+      applyResult(p); renderReport(p); setBubble(); persist(p); cloudSave(p);
+      if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.' + (p.diffs && p.diffs.length ? ' What changed in the shape: ' + p.diffs.join(' ') : ' The shape looks the same as the last version.'), 12000); p.verPrev = null; }
       if (p.orientNote && p.orig && p.res.score < p.orientNote.score) { p.mesh = p.orig; p.orig = null; p.orientNote = null; p.res = null; refreshProject(); toast('I tried turning the model, but the new position scored lower, so I left it the way your file had it.'); return; }
       if (p.fixNote && p.unfixed && p.res.score < p.fixNote.before) { var bf = p.fixNote.before, nw = p.res.score; p.mesh = p.unfixed; p.unfixed = null; p.fixNote = null; p.res = null; refreshProject(); toast('I tried repairing this, but the score dropped from ' + bf + ' to ' + nw + ', so I put your original back. This one needs fixing in your modeling program.'); return; }
       if (p.orientNote) { var on = p.orientNote; p.orientNote = null; toast(on.text, 9000); }
@@ -2401,6 +2406,7 @@
     L.push('Settings: ' + PRINTERS[settings.printer].name.replace(/ \(.*/, '') + ' (' + settings.bed.join(' x ') + ' mm), ' + settings.nozzle + ' mm nozzle, ' + settings.material + ', ' + settings.layer + ' mm layers, overhang limit ' + settings.overhang + ' degrees, model units ' + UNAME[p.units || 'mm'], '');
     L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated ' + (r.resin ? 'resin' : 'plastic') + ': ' + r1(M.grams) + ' g', 'Supports: ' + (M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'needed, a little' : 'needed, about ' + r1(M.support.grams) + ' g extra') : 'not needed') : 'not checked'), 'Estimated print time: ' + fmtTime(M.minutes), 'Estimated material cost: $' + (Math.round(M.cost * 100) / 100).toFixed(2), '');
     if (p.info) L.push('About the part: ' + p.info, '');
+    if (p.history && p.history.length && p.diffs && p.diffs.length) L.push('Changed since the last version: ' + p.diffs.join(' '), '');
     L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
     r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How sure I am: ' + (CONFTXT[it.conf] || CONFTXT.est)[0] + '. ' + (CONFTXT[it.conf] || CONFTXT.est)[1], '   How to fix: ' + it.fix); });
     if (r.tips.length) { L.push('', 'Tips for this part:'); r.tips.forEach(function (t) { L.push('- ' + t.title + ': ' + t.text); }); }
@@ -2443,6 +2449,9 @@
     if (!OK.test(f.name)) { toast('Please choose an STL, 3MF or OBJ file.'); return; }
     readMesh(f).then(function (m2) {
       if (!m2 || m2.length < 9) { toast('I couldn’t read that file. Try exporting it again.'); return; }
+      var mmPer = MM[p.units || 'mm'], baseOld = p.unfixed || p.orig || p.mesh, changes = [];
+      try { changes = diffParts(partSummary(baseOld, mmPer), partSummary(m2, MM[m2.units || p.units || 'mm'])); } catch (e) { changes = []; }
+      p.diffs = changes;
       p.history = (p.history || []).concat([{ file: p.file, score: p.res ? p.res.score : 0, n: p.res ? p.res.issues.length : 0 }]);
       p.verPrev = p.res ? p.res.score : null;
       p.mesh = m2; p.file = f.name; p.units = m2.units || p.units; p.res = null; p.orig = null; p.unfixed = null;
@@ -2450,6 +2459,102 @@
     }, function () { toast('I couldn’t read that file.'); });
   });
 
+  /* ---------- keep models in this browser (never uploaded) so projects can be opened again ---------- */
+  var idbP = null, GUEST_KEY = 'meshcheck-guest-projects';
+  function idb() {
+    if (!idbP) idbP = new Promise(function (res, rej) {
+      try { var rq = indexedDB.open('meshcheck', 1); rq.onupgradeneeded = function () { rq.result.createObjectStore('models'); }; rq.onsuccess = function () { res(rq.result); }; rq.onerror = function () { rej(rq.error); }; } catch (e) { rej(e); }
+    });
+    return idbP;
+  }
+  function modelOp(mode, fn) {
+    return idb().then(function (db) { return new Promise(function (res, rej) { var tx = db.transaction('models', mode), rq = fn(tx.objectStore('models')); tx.oncomplete = function () { res(rq && rq.result); }; tx.onerror = tx.onabort = function () { rej(tx.error); }; }); });
+  }
+  function putModel(cid, mesh, units, file) { return modelOp('readwrite', function (st) { return st.put({ mesh: mesh, units: units || 'mm', file: file || '' }, cid); }).catch(function () {}); }
+  function getModel(cid) { return modelOp('readonly', function (st) { return st.get(cid); }).catch(function () { return null; }); }
+  function delModel(cid) { if (cid) modelOp('readwrite', function (st) { return st.delete(cid); }).catch(function () {}); }
+  function restoreModel(p) {
+    if (!p || p.mesh || !p.cid) return;
+    getModel(p.cid).then(function (m) {
+      if (!m || !m.mesh || p.mesh || projects.indexOf(p) < 0) return;
+      p.mesh = m.mesh; p.units = m.units || p.units; p.local = true;
+      if (view === 'archive') renderArchive();
+    });
+  }
+  function saveGuest() {
+    if (acct) return;
+    try {
+      var list = projects.filter(function (p) { return p.cid && (p.saved || p.res); }).map(function (p) {
+        var sv = p.res ? { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }) } : p.saved;
+        return { cid: p.cid, name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', history: p.history || [], saved: sv };
+      });
+      localStorage.setItem(GUEST_KEY, JSON.stringify(list.slice(-30)));
+    } catch (e) {}
+  }
+  function loadGuest() {
+    if (acct || projects.length) return;
+    try {
+      (JSON.parse(localStorage.getItem(GUEST_KEY) || '[]') || []).forEach(function (d) {
+        if (!d || !d.cid || !d.saved) return;
+        var p = { cid: d.cid, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: d.saved };
+        projects.push(p); restoreModel(p);
+      });
+    } catch (e) {}
+    if (view === 'archive') renderArchive();
+  }
+  // called after each check: remember the model on this device and, for guests, the project list
+  function persist(p) {
+    if (!p || !p.mesh) return;
+    p.cid = p.cid || newCid();
+    var base = p.unfixed || p.orig || p.mesh;
+    if (p.storedMesh !== base) { p.storedMesh = base; putModel(p.cid, base, p.units, p.file); }
+    saveGuest();
+  }
+  setTimeout(loadGuest, 0);
+
+  /* ---------- compare two versions of a part: what moved, grew or shrank ---------- */
+  function partSummary(src, mmPer) {
+    var n = Math.floor(src.length / 9); if (n < 1 || n > 400000) return null;
+    var lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30], i, k;
+    for (i = 0; i < n * 3; i++) for (k = 0; k < 3; k++) { var v = src[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+    var q = (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1) * 1e-5, ids = new Map(), vid = new Int32Array(n * 3);
+    for (i = 0; i < n * 3; i++) {
+      var key = Math.round(src[i * 3] / q) + ',' + Math.round(src[i * 3 + 1] / q) + ',' + Math.round(src[i * 3 + 2] / q), id = ids.get(key);
+      if (id === undefined) { id = ids.size; ids.set(key, id); } vid[i] = id;
+    }
+    var par = new Int32Array(ids.size); for (i = 0; i < par.length; i++) par[i] = i;
+    function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+    for (i = 0; i < n; i++) { par[find(vid[i * 3 + 1])] = find(vid[i * 3]); par[find(vid[i * 3 + 2])] = find(vid[i * 3]); }
+    var C = new Map(), f = mmPer;
+    for (i = 0; i < n; i++) {
+      var r = find(vid[i * 3]), c = C.get(r); if (!c) { c = { vol: 0, lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30] }; C.set(r, c); }
+      var a = [], j; for (j = 0; j < 3; j++) { a.push([src[i * 9 + j * 3] * f, src[i * 9 + j * 3 + 1] * f, src[i * 9 + j * 3 + 2] * f]); for (k = 0; k < 3; k++) { if (a[j][k] < c.lo[k]) c.lo[k] = a[j][k]; if (a[j][k] > c.hi[k]) c.hi[k] = a[j][k]; } }
+      c.vol += (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0])) / 6;
+    }
+    var list = []; C.forEach(function (c) { c.vol = Math.abs(c.vol); if (c.vol > 0) list.push(c); });
+    return list.sort(function (x, y) { return y.vol - x.vol; });
+  }
+  function diffParts(A, B) {
+    if (!A || !B || !A.length || !B.length) return [];
+    var out = [], used = {}, AX = ['side to side (X)', 'along the length (Y)', 'up and down (Z)'], NM = ['sideways', 'lengthwise', 'up/down'];
+    function len(c, k) { return c.hi[k] - c.lo[k]; }
+    B.forEach(function (b, bi) {
+      var best = -1, bd = 1e30;
+      A.forEach(function (a, ai) { if (used[ai]) return; var d = Math.abs(Math.log(a.vol / b.vol)) + Math.abs(len(a, 0) - len(b, 0)) / 50 + Math.abs(len(a, 1) - len(b, 1)) / 50 + Math.abs(len(a, 2) - len(b, 2)) / 50; if (d < bd) { bd = d; best = ai; } });
+      var label = B.length > 1 ? 'Part ' + (bi + 1) + (bi === 0 ? ' (largest)' : '') : 'The part';
+      if (best < 0) { out.push(label + ' is new (volume ' + Math.round(b.vol) + ' mm³).'); return; }
+      used[best] = true; var a = A[best], bits = [], k;
+      var sh = [0, 1, 2].map(function (k) { return (b.lo[k] + b.hi[k]) / 2 - (a.lo[k] + a.hi[k]) / 2; }), big = 0;
+      for (k = 1; k < 3; k++) if (Math.abs(sh[k]) > Math.abs(sh[big])) big = k;
+      if (Math.abs(sh[big]) > 0.5) bits.push('moved ' + r1(Math.abs(sh[big])) + ' mm ' + NM[big]);
+      var nm = ['wider', 'longer', 'taller'], sm = ['narrower', 'shorter', 'shorter'];
+      for (k = 0; k < 3; k++) { var dl = len(b, k) - len(a, k); if (Math.abs(dl) > 0.3) bits.push(r1(Math.abs(dl)) + ' mm ' + (dl > 0 ? nm[k] : sm[k]) + (k === 2 ? ', its top ' + (b.hi[2] > a.hi[2] ? 'is higher' : 'is lower') : '')); }
+      var dv = (b.vol - a.vol) / a.vol; if (Math.abs(dv) > 0.03) bits.push('volume ' + Math.round(a.vol) + ' to ' + Math.round(b.vol) + ' mm³ (' + (dv > 0 ? '+' : '') + Math.round(dv * 100) + '%)');
+      if (bits.length) out.push(label + ': ' + bits.join('; ') + '.');
+    });
+    A.forEach(function (a, ai) { if (!used[ai]) out.push('A part with volume ' + Math.round(a.vol) + ' mm³ was removed.'); });
+    return out;
+  }
   /* ---------- My Archive ---------- */
   var reTarget = null;
   $('reFile').addEventListener('change', function () {
@@ -2472,9 +2577,9 @@
       var ring = c.querySelector('.aring'); ring.textContent = sc == null ? '?' : sc;
       ring.style.setProperty('--p', sc == null ? 0 : sc); ring.style.setProperty('--c', sc == null ? '#999' : sc >= 90 ? '#2E9E5B' : sc >= 60 ? '#FF991C' : '#D21404');
       var bs = c.querySelectorAll('button');
-      if (!p.mesh) bs[0].textContent = 'Re-upload';
+      if (!p.mesh) { bs[0].textContent = 'Re-upload'; bs[0].title = 'This model was saved on a different device or browser, so please upload the file again.'; }
       bs[0].addEventListener('click', function () { if (!p.mesh) { reTarget = p; $('reFile').click(); return; } curP = i; setView('project'); });
-      bs[1].addEventListener('click', function () { if (p.cid && cloud && acct) cloud.delProject(acct.uid, p.cid).catch(function () {}); projects.splice(i, 1); curP = Math.min(curP, projects.length - 1); if (i < curP) curP--; renderArchive(); setBubble(); });
+      bs[1].addEventListener('click', function () { if (p.cid && cloud && acct) cloud.delProject(acct.uid, p.cid).catch(function () {}); delModel(p.cid); projects.splice(i, 1); saveGuest(); curP = Math.min(curP, projects.length - 1); if (i < curP) curP--; renderArchive(); setBubble(); });
       box.appendChild(c);
     });
   }
@@ -2538,7 +2643,7 @@
   function renderProfile() {
     var inn = !!acct;
     $('outPane').hidden = inn; $('inPane').hidden = !inn; $('delAsk').hidden = true;
-    if (inn) { $('inName').textContent = acct.name + (acct.email && acct.email !== acct.name ? ' (' + acct.email + ')' : ''); $('syncNote').textContent = syncing ? 'Syncing your projects…' : 'Your scores and settings are saved to your account. Your 3D files stay on your computer.'; return; }
+    if (inn) { $('inName').textContent = acct.name + (acct.email && acct.email !== acct.name ? ' (' + acct.email + ')' : ''); $('syncNote').textContent = syncing ? 'Syncing your projects…' : 'Your scores and settings are saved to your account. Your 3D files are never uploaded: they stay in this browser, so on another device you upload them again.'; return; }
     var up = authMode === 'up';
     $('authName').hidden = !up; $('authPass').autocomplete = up ? 'new-password' : 'current-password';
     $('authSubmit').textContent = up ? 'Create account' : 'Sign in'; $('forgotBtn').hidden = up;
@@ -2550,10 +2655,10 @@
   function colorFor(uid) { var h = 0; for (var i = 0; i < uid.length; i++) h = (h * 31 + uid.charCodeAt(i)) >>> 0; return COLORS[h % COLORS.length]; }
   function newCid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
   function cloudSave(p) {
-    if (!acct || !cloud || !p || !p.res) return;
+    if (!acct || !cloud || !p || !(p.res || p.saved)) return;
     p.cid = p.cid || newCid();
-    p.saved = { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }) };
-    cloud.saveProject(acct.uid, p.cid, { name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', score: p.saved.score, n: p.saved.n, titles: p.saved.titles, verdict: p.res.verdict, history: p.history || [], updated: Date.now() }).catch(function () {});
+    if (p.res) p.saved = { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }), verdict: p.res.verdict };
+    cloud.saveProject(acct.uid, p.cid, { name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', score: p.saved.score, n: p.saved.n, titles: p.saved.titles, verdict: p.saved.verdict || '', history: p.history || [], updated: Date.now() }).catch(function () {});
   }
   window.mcCloudSave = cloudSave;
   var setTimer = null;
@@ -2563,7 +2668,7 @@
   };
   window.mcUser = function (u) {
     if (!u) {
-      if (acct) { acct = null; signedAs = null; projects = []; curP = -1; authMode = 'in'; renderAvatars(); renderProfile(); if (view === 'archive') renderArchive(); setBubble(); }
+      if (acct) { acct = null; signedAs = null; projects = []; curP = -1; setTimeout(loadGuest, 0); authMode = 'in'; renderAvatars(); renderProfile(); if (view === 'archive') renderArchive(); setBubble(); }
       return;
     }
     if (signedAs === u.uid) { if (u.name && acct && acct.name !== u.name) { acct.name = u.name; renderProfile(); } return; }
@@ -2572,12 +2677,15 @@
     syncing = true; renderAvatars(); renderProfile(); authMsg('', '');
     cloud.loadAll(u.uid).then(function (data) {
       if (data.settings) { settings = Object.assign(settings, data.settings); if (!PRINTERS[settings.printer]) settings.printer = 'ender3'; try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} syncSettings(); }
-      var have = {}; projects.forEach(function (p) { if (p.cid) have[p.cid] = true; });
+      var have = {}; data.projects.forEach(function (d) { have[d.id] = true; });
+      var guestKeep = projects.slice();
       data.projects.forEach(function (d) {
-        if (have[d.id]) return;
-        projects.push({ cid: d.id, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: { score: d.score, n: d.n, titles: d.titles || [] } });
+        if (guestKeep.some(function (g) { return g.cid === d.id; })) return;
+        var np = { cid: d.id, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: { score: d.score, n: d.n, titles: d.titles || [], verdict: d.verdict || '' } };
+        projects.push(np); restoreModel(np);
       });
-      projects.forEach(function (p) { if (p.mesh && !p.cid) { p.cid = newCid(); if (p.res) cloudSave(p); } });
+      guestKeep.forEach(function (p) { if (!have[p.cid]) { if (!p.cid) p.cid = newCid(); if (p.mesh) persist(p); cloudSave(p); } });
+      try { localStorage.removeItem(GUEST_KEY); } catch (e) {}
       if (data.projects.length === 0 && !projects.some(function (p) { return p.mesh; })) { /* new account: nothing to load */ }
     }).catch(function () { toast('I signed you in but couldn’t load your saved projects. Try reloading.'); })
       .then(function () { syncing = false; renderProfile(); if (view === 'archive') renderArchive(); recheckIfOpen(); });
@@ -2608,6 +2716,7 @@
   $('delNo').addEventListener('click', function () { $('delAsk').hidden = true; });
   $('delYes').addEventListener('click', function () {
     if (!cloud || !acct) return;
+    projects.forEach(function (p) { delModel(p.cid); });
     cloud.deleteAccount(acct.uid).then(function () { toast('Your account and saved projects were deleted.'); }, function (er) { $('delAsk').hidden = true; toast(fbErr(er)); });
   });
   $('avatarFile').addEventListener('change', function () {
