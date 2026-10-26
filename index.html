@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeshCheck: free 3D print checker for STL and 3MF files</title>
-<meta name="description" content="Check your 3D model before you print it. MeshCheck finds holes, thin walls, overhangs and other problems in STL and 3MF files, explains how to fix them, and can repair many automatically. Your files never leave your browser.">
+<title>MeshCheck: free 3D print checker for STL, 3MF and OBJ files</title>
+<meta name="description" content="Check your 3D model before you print it. MeshCheck finds holes, thin walls, overhangs and other problems in STL, 3MF and OBJ files, explains how to fix them, and can repair many automatically. Your files never leave your browser.">
 <meta property="og:title" content="MeshCheck: free 3D print checker">
-<meta property="og:description" content="Find problems in your 3D model before you waste filament. Works with STL and 3MF files, right in your browser.">
+<meta property="og:description" content="Find problems in your 3D model before you waste filament. Works with STL, 3MF and OBJ files, right in your browser.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#FFCBD1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FFB347'/%3E%3Cstop offset='1' stop-color='%23EB5406'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 4 56 18v28L32 60 8 46V18Z' fill='url(%23g)'/%3E%3Cpath d='m20 33 8 8 16-18' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -538,14 +538,14 @@
   </section>
 
   <section class="details">
-    <p>MeshCheck is a website where you can safely check your 3D model to catch potential problems before a model is sent to a 3D printer. Users can upload an STL or 3MF file that they have exported from their 3D modeling software, provide information about what the part is, what it is used for, and how it is expected to function. MeshCheck then analyzes the model’s geometry and printing characteristics to identify issues such as weak areas, unsupported features, non-manifold geometry, difficult-to-print details, and other potential problems. Understanding the purpose of the part allows MeshCheck to provide better feedback.</p>
+    <p>MeshCheck is a website where you can safely check your 3D model to catch potential problems before a model is sent to a 3D printer. Users can upload an STL, 3MF or OBJ file that they have exported from their 3D modeling software, provide information about what the part is, what it is used for, and how it is expected to function. MeshCheck then analyzes the model’s geometry and printing characteristics to identify issues such as weak areas, unsupported features, non-manifold geometry, difficult-to-print details, and other potential problems. Understanding the purpose of the part allows MeshCheck to provide better feedback.</p>
     <p>The goal of MeshCheck is to reduce failed prints and unnecessary wastes of filament and design iterations. Instead of discovering a problem after spending hours waiting for a prototype to be finished printing, MeshCheck gives all of the 3D printing results to you instantly, and also gives you feedback on improvements in your design. We hope to increase the chances that your first print is successful. This allows everyone to spend less time troubleshooting and more time developing and testing their prototypes.</p>
   </section>
 
   <section class="checks" aria-label="What MeshCheck checks">
     <h2>How it works</h2>
     <ol class="steps3">
-      <li><b>1. Upload</b>Drop an STL or 3MF file exported from your 3D modeling program.</li>
+      <li><b>1. Upload</b>Drop an STL, 3MF or OBJ file exported from your 3D modeling program.</li>
       <li><b>2. Review</b>See a score, the exact trouble spots in color, and plain-English advice.</li>
       <li><b>3. Fix and print</b>Repair many problems with one click, then download the fixed file.</li>
     </ol>
@@ -594,8 +594,8 @@
         <button class="btn small alt" id="pdfBtn" type="button" title="Open a one-page report you can print or save as a PDF">Print / PDF</button>
         <button class="btn small alt" id="copyBtn" type="button" title="Copy a short summary you can paste into a message">Copy summary</button>
         <button class="btn small alt wide" id="verBtn" type="button" title="Swap in your updated file and see how the score changed">Upload new version</button>
-        <input type="file" id="verFile" accept=".stl,.3mf" hidden>
-        <input type="file" id="reFile" accept=".stl,.3mf" hidden>
+        <input type="file" id="verFile" accept=".stl,.3mf,.obj" hidden>
+        <input type="file" id="reFile" accept=".stl,.3mf,.obj" hidden>
       </div>
     </aside>
     <div class="viewwrap" id="viewwrap">
@@ -730,7 +730,7 @@
     <button class="addfile" id="wrongAdd" type="button" hidden>+ Add file</button>
     <button class="filex" id="wrongRemove" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
   </div>
-  <div class="msgbox" id="wrongMsg">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
+  <div class="msgbox" id="wrongMsg">Whoops! It seems like we don’t support this type of file. Try STL, 3MF or OBJ files instead!</div>
 </dialog>
 
 <div class="progress-screen" id="progress" role="status" aria-live="polite">
@@ -741,7 +741,7 @@
 <dialog id="tutorialDialog" aria-labelledby="tutTitle">
   <h3 id="tutTitle">How MeshCheck works</h3>
   <ol>
-    <li>Drop your STL or 3MF file anywhere on the page, or press the + button. Name your project and say what the part is for.</li>
+    <li>Drop your STL, 3MF or OBJ file anywhere on the page, or press the + button. Name your project and say what the part is for.</li>
     <li>Pick your printer, nozzle and units in Print settings so the checks match your setup.</li>
     <li>Look at your score, then click each item under “What I found”. Problem spots light up on the model and I explain how to fix them.</li>
     <li>Try “Best orientation” to cut down on overhangs, download a fixed STL or a report, and ask Tiger AI anything.</li>
@@ -953,6 +953,30 @@
     if (res.length < 9) throw new Error('no triangles');
     return res;
   }
+  function parseOBJ(buf) {
+    var txt = new TextDecoder().decode(buf), lines = txt.split('\n'), V = [], out = [], i, j, L, p, k, idx;
+    for (i = 0; i < lines.length; i++) {
+      L = lines[i];
+      if (L.charCodeAt(0) === 118 && L.charCodeAt(1) === 32) {          // "v x y z"
+        p = L.trim().split(/\s+/); V.push(+p[1], +p[2], +p[3]);
+      } else if (L.charCodeAt(0) === 102 && (L.charCodeAt(1) === 32 || L.charCodeAt(1) === 9)) {   // "f a/b/c ..."
+        p = L.trim().split(/\s+/); idx = [];
+        for (k = 1; k < p.length; k++) {
+          j = parseInt(p[k], 10); if (isNaN(j)) continue;
+          idx.push(j < 0 ? V.length / 3 + j : j - 1);
+        }
+        for (k = 1; k + 1 < idx.length; k++) {      // fan-triangulate polygons
+          var a = idx[0] * 3, b = idx[k] * 3, c = idx[k + 1] * 3;
+          if (a < 0 || b < 0 || c < 0 || a + 2 >= V.length || b + 2 >= V.length || c + 2 >= V.length) continue;
+          out.push(V[a], V[a + 1], V[a + 2], V[b], V[b + 1], V[b + 2], V[c], V[c + 1], V[c + 2]);
+        }
+      }
+    }
+    if (out.length < 9) throw new Error('no triangles');
+    var res = cleanTris(new Float32Array(out));
+    if (res.length < 9) throw new Error('no triangles');
+    return res;
+  }
   function inflateRaw(u8) {
     var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter();
     w.write(u8); w.close();
@@ -995,7 +1019,7 @@
     });
   }
   function readMesh(f) {
-    return f.arrayBuffer().then(function (buf) { return /\.3mf$/i.test(f.name) ? parse3MF(buf) : parseSTL(buf); });
+    return f.arrayBuffer().then(function (buf) { return /\.3mf$/i.test(f.name) ? parse3MF(buf) : /\.obj$/i.test(f.name) ? parseOBJ(buf) : parseSTL(buf); });
   }
 
   /* ---------- print settings ---------- */
@@ -1084,12 +1108,22 @@
     // welded vertices and edges (a closed model shares every edge between exactly two triangles)
     var ids = new Map(), nid = 0, vid = new Int32Array(n * 3), key, id;
     for (i = 0; i < n * 3; i++) {
-      key = Math.round(m[i * 3] * 500) + ',' + Math.round(m[i * 3 + 1] * 500) + ',' + Math.round(m[i * 3 + 2] * 500);
+      key = Math.round(m[i * 3] * 10000) + ',' + Math.round(m[i * 3 + 1] * 10000) + ',' + Math.round(m[i * 3 + 2] * 10000);
       id = ids.get(key); if (id === undefined) { id = nid++; ids.set(key, id); } vid[i] = id;
     }
+    // duplicate and zero-size faces
+    var degen = [], seen = new Set(), dup = [], skipT = new Uint8Array(n), degenEps = 1e-9 * dimMax * dimMax;
+    for (t = 0; t < n; t++) {
+      if (area[t] <= degenEps || vid[t * 3] === vid[t * 3 + 1] || vid[t * 3 + 1] === vid[t * 3 + 2] || vid[t * 3] === vid[t * 3 + 2]) { degen.push(t); continue; }
+      var tri = [vid[t * 3], vid[t * 3 + 1], vid[t * 3 + 2]].sort(function (x, y) { return x - y; });
+      key = tri[0] + '_' + tri[1] + '_' + tri[2];
+      if (seen.has(key)) { dup.push(t); skipT[t] = 1; } else seen.add(key);
+    }
+
     var edges = new Map(), firstTri = new Map(), knife = [], a, b;
     function ekey(x, y) { return x < y ? x * 67108864 + y : y * 67108864 + x; }
     for (t = 0; t < n; t++) for (e = 0; e < 3; e++) {
+      if (skipT[t]) continue;
       a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
       key = ekey(a, b); var ec = edges.get(key) || 0; edges.set(key, ec + 1);
       if (ec === 0) firstTri.set(key, t);
@@ -1099,6 +1133,7 @@
     edges.forEach(function (c) { if (c === 1) open++; else if (c > 2) multi++; });
     if (open || multi) {
       for (t = 0; t < n; t++) {
+        if (skipT[t]) continue;
         var isOpen = false, isMulti = false;
         for (e = 0; e < 3; e++) {
           a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
@@ -1110,15 +1145,6 @@
     var closed = !open && !multi;
     var flipN = closed && vol < 0 ? -1 : 1;   // an inside-out model: judge it as if its faces were turned the right way
     if (flipN < 0) for (i = 0; i < n; i++) { nz[i] = -nz[i]; nxA[i] = -nxA[i]; nyA[i] = -nyA[i]; }
-
-    // duplicate and zero-size faces
-    var degen = [], seen = new Set(), dup = [], degenEps = 1e-9 * dimMax * dimMax;
-    for (t = 0; t < n; t++) {
-      if (area[t] <= degenEps || vid[t * 3] === vid[t * 3 + 1] || vid[t * 3 + 1] === vid[t * 3 + 2] || vid[t * 3] === vid[t * 3 + 2]) { degen.push(t); continue; }
-      var tri = [vid[t * 3], vid[t * 3 + 1], vid[t * 3 + 2]].sort(function (x, y) { return x - y; });
-      key = tri[0] + '_' + tri[1] + '_' + tri[2];
-      if (seen.has(key)) dup.push(t); else seen.add(key);
-    }
 
     if (total <= 1e-9 * dimMax * dimMax) {
       add('empty', 'err', 1, 'Model has no surface', 'Model has no shape',
@@ -1132,7 +1158,7 @@
         'Press “Fix it for me” to close the holes automatically. Or repair it in your modeling program: in Blender use Select All by Trait > Non Manifold, then Mesh > Clean Up > Fill Holes. Windows 3D Builder and Meshmixer also repair automatically.', holeTris);
     }
     if (multi) {
-      add('overlap', 'err', 1, 'Overlapping geometry', 'Faces overlap',
+      add('overlap', multi > Math.max(6, edges.size * 0.003) ? 'err' : 'warn', 1, 'Overlapping geometry', 'Faces overlap',
         multi + ' edge' + (multi === 1 ? ' is' : 's are') + ' shared by more than two faces, so the model is not one clean solid (it is non-manifold). Slicers may misread which parts are inside.',
         'Merge overlapping bodies into one solid (a Boolean union or “Combine” in your CAD program) and export again. Delete any hidden duplicate bodies.', multiTris);
     }
@@ -1142,7 +1168,7 @@
         'Press “Fix it for me” to flip every face. In Blender use Mesh > Normals > Recalculate Outside.', null);
     }
     if (degen.length || dup.length) {
-      add('junk', 'warn', 1, 'Duplicate or empty faces', 'Duplicate or empty faces',
+      add('junk', (degen.length + dup.length) > n * 0.02 ? 'warn' : 'info', (degen.length + dup.length) > n * 0.02 ? 1 : 2, 'Duplicate or empty faces', 'Duplicate or empty faces',
         'There are ' + degen.length + ' zero-size and ' + dup.length + ' duplicated faces. They add no shape but can confuse slicers and make the file larger.',
         'Press “Fix it for me” to remove them, or use Remove Duplicates / Merge by Distance in your modeling tool.', degen.concat(dup));
     }
@@ -1206,7 +1232,7 @@
       if (over.length && overArea > total * 0.005) {
         var pct = Math.max(1, Math.round(overArea / total * 100));
         res.overhangPct = pct;
-        add('overhang', pct >= 10 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
+        add('overhang', pct >= 15 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
           'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
           'Turn the model so the flat side faces down (try the Best orientation button), add supports in your slicer, or redesign the overhang as a 45° slope or a chamfer.', over);
         // bridges: flat undersides joined together; how wide a flat span hangs in the air?
@@ -1287,7 +1313,7 @@
           'Round the tip with a small fillet (about ' + r1(noz) + ' mm or more), or cut it off flat.', sharp);
       }
       if (knife.length) {
-        add('knife', 'warn', 1, 'Razor-thin edges', 'Razor-thin edge',
+        add('knife', knife.length > 100 ? 'warn' : 'info', knife.length > 100 ? 1 : 2, 'Razor-thin edges', 'Razor-thin edge',
           'Some edges fold back on themselves into a blade (' + Math.round(knife.length / 2) + ' spot' + (knife.length === 2 ? '' : 's') + '), shown in red. Edges thinner than the nozzle can’t be printed and may be dropped by the slicer.',
           'Thicken the edge to at least ' + r1(noz * 2) + ' mm, or round it off in your modeling tool.', knife);
       }
@@ -1345,17 +1371,19 @@
       tested++;
       var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thickMax);   // into the model: wall thickness
       if (hit) {
-        var th = (hit.d + off) / mmU; thick[t] = th;
-        if (th <= thinThr) { if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); } }
-        if (th < 2) { under2.push(t); p2.push(hit.t); }
+        var th = (hit.d + off) / mmU, facing = nx * nxA[hit.t] + ny * nyA[hit.t] + nzz * nz[hit.t];
+        if (facing > 0.5) thick[t] = th;   // the far side points away from us: a real wall, not a sharp corner
+        if (facing > 0.5 && th <= thinThr) { if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); } }
+        if (facing > 0.5 && th < 2) { under2.push(t); p2.push(hit.t); }
       }
       var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, gapMaxD);          // out of the model: gap width
       if (gap) {
         var gd = (gap.d + off) / mmU, hitSame = comp[gap.t] === comp[t];
+        var gfacing = nx * nxA[gap.t] + ny * nyA[gap.t] + nzz * nz[gap.t];
         if (gd < noz) {
           if (!hitSame) { if (gd > 0.02) { closeA.push(t); closeB.push(gap.t); closeMin = Math.min(closeMin, gd); } }
-          else { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, gd); }
-        } else if (gd <= holeMax / mmU && hitSame && nxA[t] * nxA[gap.t] + nyA[t] * nyA[gap.t] + nz[t] * nz[gap.t] < -0.85) {
+          else if (gfacing < -0.5) { gaps.push(t); pG.push(gap.t); gapMin = Math.min(gapMin, gd); }
+        } else if (gd <= holeMax / mmU && hitSame && gfacing < -0.85) {
           holesA.push(t); holesB.push(gap.t); holeLo = Math.min(holeLo, gd); holeHi = Math.max(holeHi, gd);
         }
       }
@@ -1394,7 +1422,10 @@
         'Some separate parts sit only about ' + Math.max(0.05, r2(closeMin)) + ' mm apart, shown in red. Printed plastic spreads a little, so parts this close can fuse into one lump.',
         'Leave at least 0.2 to 0.4 mm between parts that must stay separate (0.3 mm or more for parts that must move), or let them touch on purpose and join them in your CAD program.', closeA.concat(closeB));
     }
-    if (holesA.length >= 6 && holesA.length >= tested * 0.02) {
+    var holeNote = holesA.length >= 6 && holesA.length >= tested * 0.02;
+    if (holeNote && holeLo >= (resin ? 0.5 : 1.2)) {
+      res.tips.push({ title: 'Holes will print slightly small', text: 'Your model has holes about ' + r1(holeLo) + ' to ' + r1(holeHi) + ' mm across. Printers make holes a little smaller than designed, so add about 0.2 mm to the diameter of any hole a bolt or pin must fit into (0.3 mm for tight fits).' });
+    } else if (holeNote) {
       add('smallholes', 'info', 2, 'Small holes or slots', 'Small holes may print too tight',
         'The model has narrow holes or slots (about ' + r1(holeLo) + ' to ' + r1(holeHi) + ' mm across), shown in yellow. 3D printers make holes slightly smaller than designed, so a bolt or pin that fits in the model may not fit in the print.',
         'Add about 0.2 mm to the diameter of any hole something must fit into (0.3 mm for tight fits). Small holes under about 2 mm may need drilling out afterwards.', holesA.concat(holesB));
@@ -1412,7 +1443,7 @@
 
     // tips from what the part is for
     var pu = purposeTips(o.purpose, o.material);
-    res.tips = pu.tips;
+    res.tips = res.tips.concat(pu.tips);
     if (pu.load && under2.length >= 3 && under2.length >= tested * 0.1) {
       add('loadthin', 'warn', 1, 'Thin walls for a load-bearing part', 'Walls thin for a strong part',
         'You said this part carries a load, but about ' + Math.round(under2.length / Math.max(1, tested) * 100) + '% of the sampled surface is under 2 mm thick, shown in red. Thin walls are the first thing to crack under load.',
@@ -1462,7 +1493,7 @@
 
   var homeView = $('homeView'), projectView = $('projectView'), profileView = $('profileView');
   var tabs = document.querySelectorAll('.tab[data-view]'), profBtn = $('profBtn');
-  var file = $('file'), drop = $('drop'), OK = /\.(stl|3mf)$/i;
+  var file = $('file'), drop = $('drop'), OK = /\.(stl|3mf|obj)$/i;
   var promptDlg = $('promptDialog'), wrongDlg = $('wrongDialog'), saveDlg = $('saveDialog'), progress = $('progress');
   var partInfo = $('partInfo'), projName = $('projName'), chip = $('chip'), addBtn = $('addFile'), okBtn = $('okBtn');
   var bubble = $('bubble'), bubbleText = $('bubbleText'), tiger = $('tigerBtn'), chat = $('chat');
@@ -1521,10 +1552,10 @@
     partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; setFile('');
     promptDlg.showModal();
   }
-  var WRONG_MSG = 'Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!';
+  var WRONG_MSG = 'Whoops! It seems like we don’t support this type of file. Try STL, 3MF or OBJ files instead!';
   function showBad(name, why) {
     $('wrongTitle').textContent = 'Whoops! We couldn’t read that file';
-    $('wrongMsg').textContent = why || 'The file looks empty, damaged or incomplete. Try exporting it again from your modeling program as a binary STL or a 3MF file.';
+    $('wrongMsg').textContent = why || 'The file looks empty, damaged or incomplete. Try exporting it again from your modeling program as a binary STL, a 3MF or an OBJ file.';
     var n = $('wrongName'); n.textContent = name; n.hidden = false;
     $('wrongAdd').hidden = true; $('wrongRemove').hidden = false;
     if (!wrongDlg.open) wrongDlg.showModal();
@@ -1734,6 +1765,7 @@
       p.res = analyze(p.norm, viewer.n, optsFor(p));
       applyResult(p); renderReport(p); setBubble(); cloudSave(p);
       if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
+      if (p.orientNote) { var on = p.orientNote; p.orientNote = null; toast('I turned the model onto a better face (tried ' + on.tried + ' angles). Overhang dropped from about ' + Math.round(on.from * 100) + '% to ' + Math.round(on.to * 100) + '% of the surface. Press the button again to undo.'); }
       if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
   }
@@ -1843,30 +1875,83 @@
     }
     return out;
   }
-  function orientScore(mesh) {
-    var n = Math.floor(mesh.length / 9), zmin = 1e30, zmax = -1e30, i, step = Math.max(1, Math.floor(n / 20000));
-    for (i = 2; i < mesh.length; i += 3) { if (mesh[i] < zmin) zmin = mesh[i]; if (mesh[i] > zmax) zmax = mesh[i]; }
-    var tol = (zmax - zmin) * 0.003, lim = -Math.sin(settings.overhang * Math.PI / 180), over = 0, contact = 0, tot = 0;
+  function orientScore(mesh, gapTol) {
+    var n = Math.floor(mesh.length / 9), zmin = 1e30, zmax = -1e30, xmn = 1e30, xmx = -1e30, ymn = 1e30, ymx = -1e30, i, step = Math.max(1, Math.floor(n / 20000));
+    for (i = 0; i < mesh.length; i += 3) {
+      if (mesh[i] < xmn) xmn = mesh[i]; if (mesh[i] > xmx) xmx = mesh[i]; if (mesh[i + 1] < ymn) ymn = mesh[i + 1]; if (mesh[i + 1] > ymx) ymx = mesh[i + 1];
+      if (mesh[i + 2] < zmin) zmin = mesh[i + 2]; if (mesh[i + 2] > zmax) zmax = mesh[i + 2];
+    }
+    var G = 64, sx = (xmx - xmn) || 1, sy = (ymx - ymn) || 1, cells = new Array(G * G), tol = (zmax - zmin) * 0.003, lim = -Math.sin(settings.overhang * Math.PI / 180), over = 0, contact = 0, tot = 0;
+    var rec = [];
     for (i = 0; i < n; i += step) {
       var o = i * 9, ux = mesh[o + 3] - mesh[o], uy = mesh[o + 4] - mesh[o + 1], uz = mesh[o + 5] - mesh[o + 2], wx = mesh[o + 6] - mesh[o], wy = mesh[o + 7] - mesh[o + 1], wz = mesh[o + 8] - mesh[o + 2];
       var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz), a = len / 2; if (len < 1e-12) continue;
-      tot += a; var nzv = cz / len;
-      if (nzv < lim) { if (Math.max(mesh[o + 2], mesh[o + 5], mesh[o + 8]) - zmin <= tol) contact += a; else over += a; }
+      var nzv = cz / len, mx = (mesh[o] + mesh[o + 3] + mesh[o + 6]) / 3, my = (mesh[o + 1] + mesh[o + 4] + mesh[o + 7]) / 3, mz = (mesh[o + 2] + mesh[o + 5] + mesh[o + 8]) / 3;
+      tot += a;
+      var ci = Math.min(G - 1, Math.floor((my - ymn) / sy * G)) * G + Math.min(G - 1, Math.floor((mx - xmn) / sx * G));
+      if (Math.abs(nzv) > 0.05) (cells[ci] || (cells[ci] = [])).push(mz);
+      if (nzv < lim) {
+        if (Math.max(mesh[o + 2], mesh[o + 5], mesh[o + 8]) - zmin <= tol) contact += a; else rec.push(a, ci, mz);
+      }
     }
-    return { over: over / (tot || 1), contact: contact / (tot || 1), height: zmax - zmin };
+    for (i = 0; i < cells.length; i++) if (cells[i]) cells[i].sort(function (p, q) { return p - q; });
+    var gt = gapTol || (zmax - zmin) * 0.02, eps = gt * 0.03;
+    for (i = 0; i < rec.length; i += 3) {
+      var list = cells[rec[i + 1]], z = rec[i + 2], supported = false;
+      if (z - zmin < gt) supported = true;
+      if (!supported && list) {   // is there surface just under this face?
+        var lo = 0, hi = list.length;
+        while (lo < hi) { var mid = (lo + hi) >> 1; if (list[mid] < z - eps) lo = mid + 1; else hi = mid; }
+        if (lo > 0 && z - list[lo - 1] <= gt) supported = true;
+      }
+      if (!supported) over += rec[i];
+    }
+    return { over: over / (tot || 1), contact: contact / (tot || 1), height: zmax - zmin, span: Math.max(sx, sy) };
+  }
+  // turn the model so the unit vector n points straight down
+  function rotToDown(src, nx, ny, nz) {
+    var out = new Float32Array(src.length), i, c = -nz;
+    if (c > 0.99999) { out.set(src); return out; }
+    if (c < -0.99999) { for (i = 0; i < src.length; i += 3) { out[i] = src[i]; out[i + 1] = -src[i + 1]; out[i + 2] = -src[i + 2]; } return out; }
+    var ax = -ny, ay = nx, len = Math.sqrt(ax * ax + ay * ay), sn = len; ax /= len; ay /= len;
+    for (i = 0; i < src.length; i += 3) {
+      var x = src[i], y = src[i + 1], z = src[i + 2], dot = ax * x + ay * y, kx = ay * z, ky = -ax * z, kz = ax * y - ay * x;
+      out[i] = x * c + kx * sn + ax * dot * (1 - c); out[i + 1] = y * c + ky * sn + ay * dot * (1 - c); out[i + 2] = z * c + kz * sn;
+    }
+    return out;
+  }
+  // faces worth lying on: the biggest flat areas, plus the six straight-down choices
+  function orientCandidates(mesh) {
+    var n = Math.floor(mesh.length / 9), step = Math.max(1, Math.floor(n / 40000)), buckets = {}, i, c = [[0, 0, -1], [0, 0, 1], [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0]];
+    for (i = 0; i < n; i += step) {
+      var o = i * 9, ux = mesh[o + 3] - mesh[o], uy = mesh[o + 4] - mesh[o + 1], uz = mesh[o + 5] - mesh[o + 2], wx = mesh[o + 6] - mesh[o], wy = mesh[o + 7] - mesh[o + 1], wz = mesh[o + 8] - mesh[o + 2];
+      var cx = uy * wz - uz * wy, cy = uz * wx - ux * wz, cz = ux * wy - uy * wx, len = Math.sqrt(cx * cx + cy * cy + cz * cz); if (len < 1e-12) continue;
+      var key = Math.round(cx / len * 5) + ',' + Math.round(cy / len * 5) + ',' + Math.round(cz / len * 5), bk = buckets[key] || (buckets[key] = { a: 0, x: 0, y: 0, z: 0 });
+      bk.a += len; bk.x += cx; bk.y += cy; bk.z += cz;
+    }
+    Object.keys(buckets).map(function (k) { return buckets[k]; }).sort(function (p, q) { return q.a - p.a; }).slice(0, 14).forEach(function (bk) {
+      var l = Math.sqrt(bk.x * bk.x + bk.y * bk.y + bk.z * bk.z) || 1; c.push([bk.x / l, bk.y / l, bk.z / l]);
+    });
+    var out = [];
+    c.forEach(function (v) { if (!out.some(function (u) { return u[0] * v[0] + u[1] * v[1] + u[2] * v[2] > 0.985; })) out.push(v); });
+    return out;
   }
   $('orientBtn').addEventListener('click', function () {
     var p = cur(); if (!p || !p.res) return;
     if (p.orig) { p.mesh = p.orig; p.orig = null; p.res = null; refreshProject(); toast('Back to the orientation from your file.'); return; }
-    var best = 0, bs = 1e30, before = null;
-    for (var k = 0; k < 6; k++) {
-      var s = orientScore(rotate(p.mesh, k)), val = s.over - 0.15 * Math.min(s.contact, 0.3);
-      if (k === 0) before = val;
-      if (val < bs - 1e-9) { bs = val; best = k; }
-    }
-    if (best === 0 || bs > before - 0.01) { toast('Your model is already lying in about the best way of the six I tried.'); return; }
-    p.orig = p.mesh; p.mesh = rotate(p.mesh, best); p.res = null; refreshProject();
-    toast('I turned the model to cut down on overhangs. Press the button again to undo.');
+    var btn = this; btn.disabled = true; toast('Trying lots of ways to lay your model down…');
+    setTimeout(function () {
+      var cands = orientCandidates(p.mesh), best = null, bs = 1e30, base = null;
+      cands.forEach(function (nv) {
+        var m2 = rotToDown(p.mesh, nv[0], nv[1], nv[2]), sc = orientScore(m2, 0.6 / MM[p.units || 'mm'] * (settings.nozzle / 0.4));
+        var dim = Math.max(sc.height, 1e-9), val = sc.over - 0.15 * Math.min(sc.contact, 0.3) + 0.04 * Math.min(1, sc.height / (sc.span || dim));
+        if (nv[0] === 0 && nv[1] === 0 && nv[2] === -1) base = { val: val, over: sc.over };
+        if (val < bs - 1e-9) { bs = val; best = { m: m2, over: sc.over, n: nv }; }
+      });
+      btn.disabled = false;
+      if (!best || !base || bs > base.val - 0.01) { toast('Your model is already lying in about the best way I could find (I tried ' + cands.length + ' angles).'); return; }
+      p.orig = p.mesh; p.mesh = best.m; p.res = null; p.orientNote = { from: base.over, to: best.over, tried: cands.length }; refreshProject();
+    }, 30);
   });
 
   // repair: weld, drop junk, fix winding, fill holes. src is the file's mesh (any units); specks = size under which loose pieces are dropped.
@@ -1874,7 +1959,7 @@
     var n = Math.floor(src.length / 9), i, k, t;
     var lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30];
     for (i = 0; i < n * 3; i++) for (k = 0; k < 3; k++) { var v = src[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
-    var diag = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, q = diag * 2.5e-5;
+    var diag = Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1, q = diag * 1.5e-6;
     var map = new Map(), pos = [], idx = new Int32Array(n * 3);
     for (i = 0; i < n * 3; i++) {
       var key = Math.round(src[i * 3] / q) + ',' + Math.round(src[i * 3 + 1] / q) + ',' + Math.round(src[i * 3 + 2] / q), id = map.get(key);
@@ -2059,7 +2144,7 @@
   $('verBtn').addEventListener('click', function () { if (cur()) $('verFile').click(); });
   $('verFile').addEventListener('change', function () {
     var p = cur(), f = this.files[0]; this.value = ''; if (!p || !f) return;
-    if (!OK.test(f.name)) { toast('Please choose an STL or 3MF file.'); return; }
+    if (!OK.test(f.name)) { toast('Please choose an STL, 3MF or OBJ file.'); return; }
     readMesh(f).then(function (m2) {
       if (!m2 || m2.length < 9) { toast('I couldn’t read that file. Try exporting it again.'); return; }
       p.history = (p.history || []).concat([{ file: p.file, score: p.res ? p.res.score : 0, n: p.res ? p.res.issues.length : 0 }]);
@@ -2073,7 +2158,7 @@
   var reTarget = null;
   $('reFile').addEventListener('change', function () {
     var f = this.files[0], p = reTarget; this.value = ''; reTarget = null; if (!f || !p) return;
-    if (!OK.test(f.name)) { toast('Please choose an STL or 3MF file.'); return; }
+    if (!OK.test(f.name)) { toast('Please choose an STL, 3MF or OBJ file.'); return; }
     readMesh(f).then(function (m2) {
       if (!m2 || m2.length < 9) { toast('I couldn’t read that file.'); return; }
       p.mesh = m2; p.file = f.name; p.units = m2.units || p.units; p.res = null; curP = projects.indexOf(p); setView('project');
@@ -2104,13 +2189,13 @@
     var p = cur(), r = p && p.res, has = function () { for (var i = 0; i < arguments.length; i++) if (q.indexOf(arguments[i]) >= 0) return true; return false; };
     var issue = function (id) { return r && issueById(p, id); };
     if (has('hello', 'hi ', 'hey') && q.length < 12) return 'Hi! Ask me about your model, your settings, or how to fix something I found.';
-    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL or 3MF for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs and long bridges, sharp points, small holes, sealed pockets, parts too close together, bed contact, tall thin shapes and whether it fits your printer. I can also repair many problems with the “Fix it for me” button. Ask me about any of them, or what to fix first.';
-    if (has('file', 'format', 'obj', 'step', 'upload', 'support stl')) return 'I can read STL (binary or text) and 3MF files. Export your design from your modeling program as STL or 3MF, then drop it on the home page or press the + button.';
+    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL, 3MF or OBJ for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs and long bridges, sharp points, small holes, sealed pockets, parts too close together, bed contact, tall thin shapes and whether it fits your printer. I can also repair many problems with the “Fix it for me” button. Ask me about any of them, or what to fix first.';
+    if (has('file', 'format', 'obj', 'step', 'upload', 'support stl')) return 'I can read STL (binary or text), 3MF and OBJ files. Export your design from your modeling program as STL, 3MF or OBJ, then drop it on the home page or press the + button.';
     if (has('unit', 'inch', 'millimet', 'scale', 'too big', 'too small')) return 'STL files don’t say what units they use, so I assume millimeters unless you change it in Print settings (3MF files tell me themselves). If your sizes look off by 25 or 10 times, switch the units.';
     if (has('nozzle')) return 'Your nozzle is set to ' + settings.nozzle + ' mm. I treat anything smaller than that as too small to print, and walls under ' + r1(settings.nozzle * 3) + ' mm as thin. Change it in Print settings if you use a different one.';
     if (has('material', 'pla', 'petg', 'abs', 'tpu', 'resin', 'filament type')) return 'Your material is ' + settings.material + '. It changes my weight and cost estimates' + (settings.material === 'Resin' ? ', and switches me to resin rules (finer details are allowed, but big flat faces and sealed pockets are problems)' : '') + '. For strength, PETG and ABS handle stress better than PLA, and thicker walls help most of all.';
     if (!p) return 'Upload a model first (the + button) and I’ll check it for you!';
-    if (p.unreadable) return 'I couldn’t read that file, so I can’t check it. Try exporting it again as binary STL or 3MF.';
+    if (p.unreadable) return 'I couldn’t read that file, so I can’t check it. Try exporting it again as binary STL, 3MF or OBJ.';
     if (!r) return 'Give me a second, I’m still checking your model.';
     if (has('score', 'ready', 'good', 'ok ', 'okay', 'print it', 'safe')) return 'Your score is ' + r.score + '/100: ' + r.verdict.toLowerCase() + '. ' + (r.issues.length ? 'Start with “' + r.issues[0].title + '”.' : 'I found nothing wrong, but always preview it in your slicer too.');
     if (has('fix first', 'first', 'priority', 'what should', 'fix', 'problem', 'wrong', 'issue')) return r.issues.length ? 'Start with “' + r.issues[0].title + '”. ' + r.issues[0].fix : 'I didn’t find any problems in “' + p.name + '”.';
