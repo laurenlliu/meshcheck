@@ -2226,6 +2226,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     var tx = document.createElement('div'); tx.className = 'tx'; tx.textContent = text;
     d.appendChild(av); d.appendChild(tx); $('chatLog').appendChild(d);
     $('chatLog').scrollTop = $('chatLog').scrollHeight;
+    return tx;
   }
   function toggleChat(open) {
     chat.hidden = !open; tiger.setAttribute('aria-expanded', String(open));
@@ -2239,7 +2240,13 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     e.preventDefault();
     var inp = $('chatInput'), t = inp.value.trim(); if (!t) return;
     say('user', t); inp.value = '';
-    setTimeout(function () { say('tiger', tigerAnswer(t)); }, 450);
+    var fallback = tigerAnswer(t), p = cur();
+    if (!AI_URL) { setTimeout(function () { say('tiger', fallback); }, 450); return; }
+    var box = say('tiger', '…'), ctl = window.AbortController ? new AbortController() : null, to = setTimeout(function () { if (ctl) ctl.abort(); }, 20000);
+    fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl ? ctl.signal : undefined, body: JSON.stringify({ question: t, facts: aiFacts(p, fallback), history: chatHist.slice(-6) }) })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (j) { clearTimeout(to); var a = (j && j.answer || '').replace(/\s*—\s*/g, ', ').trim(); if (!a) throw 0; box.textContent = a; chatHist.push({ role: 'user', content: t }, { role: 'assistant', content: a }); $('chatLog').scrollTop = $('chatLog').scrollHeight; })
+      .catch(function () { clearTimeout(to); box.textContent = fallback; });
   });
   say('tiger', 'Hi! I’m Tiger AI. Ask me anything about your 3D model!');
 
@@ -3077,6 +3084,31 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     if (!stuck && !loose && !reach) out.push('Tell me what it should do and what it does instead (for example “the slider gets stuck halfway” or “the button doesn’t stick out far enough”), and I’ll narrow it down.');
     else if (stuck || loose) out.push('Printing the fit test piece (Print settings) tells you the exact gap your printer needs.');
     return out.join(' ');
+  }
+
+  /* ---------- Tiger AI helper: sends measured facts (never the 3D file) to a free relay (see worker/README.md) ---------- */
+  var AI_URL = '';   // address of your Cloudflare Worker, for example 'https://meshcheck-tiger.yourname.workers.dev'. Leave empty to use the built-in answers only.
+  var chatHist = [];
+  function aiFacts(p, rulesAnswer) {
+    var f = { note: 'All numbers were measured by code on the user’s model. Lengths are in millimeters.', freeSlidingGapMm: settings.clear || (settings.material === 'Resin' ? 0.15 : 0.3), freeSlidingGapIsDefault: !settings.clear };
+    f.settings = { printer: PRINTERS[settings.printer].name.replace(/ \(.*/, ''), nozzleMm: settings.nozzle, material: settings.material, layerMm: settings.layer, infillPercent: settings.infill || 20 };
+    if (!p) { f.model = 'No model is open yet.'; return f; }
+    f.model = { name: p.name, file: p.file };
+    if (p.info) f.whatTheUserSaysItIsFor = String(p.info).slice(0, 400);
+    var r = p.res; if (!r) { f.model.status = 'still being checked'; return f; }
+    var M = r.metrics;
+    f.result = { score: r.score, verdict: r.verdict, sizeMm: [r1(M.x), r1(M.y), r1(M.z)], separateParts: M.bodies || 1, supports: M.support ? (M.support.needed ? 'needed' : 'not needed') : 'not checked', estimatedMinutes: Math.round(M.minutes), estimatedGrams: +r1(M.grams) };
+    f.issues = r.issues.slice(0, 8).map(function (i) { return { title: i.title, severity: i.kind === 'err' ? 'must fix' : i.kind === 'warn' ? 'should fix' : 'worth a look', what: i.text.slice(0, 280), fix: i.fix.slice(0, 220), howSure: (CONFTXT[i.conf] || CONFTXT.est)[0] }; });
+    if (r.fit) {
+      var F = r.fit;
+      f.parts = F.parts.map(function (q) { return { name: 'Part ' + (q.id + 1), sizeMm: q.size.map(function (x) { return +r1(x); }), volumeMm3: Math.round(q.vol) }; });
+      f.pairs = F.pairs.map(function (q) { return { between: 'Part ' + (q.a + 1) + ' and Part ' + (q.b + 1), closestGapMm: +r2f(Math.max(q.gap, -99)), overlapMm: q.gap < 0 ? +r2f(-q.gap) : 0, label: q.cls.label }; });
+      f.movingParts = F.movers.map(function (v) { return { part: 'Part ' + (v.part + 1), slidesAlong: AXN[v.axis], totalTravelMm: +r1(v.total), travelOneWayMm: +r1(v.neg), travelOtherWayMm: +r1(v.pos), closestGapWhileSlidingMm: v.min == null ? null : +r2f(v.min), shareOfTravelUnderHalfFreeGap: +r2f(v.tightFrac), slidesInside: 'Part ' + (v.partner + 1), sticksOut: v.sticks.map(function (s) { return r1(s.mm) + ' mm ' + OUTN[s.axis][s.dir] + ' Part ' + (v.partner + 1); }) }; });
+      if (p.worked) f.differencesFromTheVersionThatWorked = { file: p.worked.file, changes: compareFit(p.worked.sum, fitSummary(F)) };
+    }
+    if (p.diffs && p.diffs.length) f.changesSinceLastUpload = p.diffs;
+    f.builtInAnswerForThisQuestion = String(rulesAnswer || '').slice(0, 700);
+    return f;
   }
 
   /* ---------- Tiger AI answers (rules based, from the real results) ---------- */

@@ -1,0 +1,10 @@
+name = "meshcheck-tiger"
+main = "index.js"
+compatibility_date = "2025-01-01"
+
+[ai]
+binding = "AI"
+
+[vars]
+# Only this website may call the relay.
+ALLOWED_ORIGIN = "https://laurenlliu.github.io"
