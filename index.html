@@ -111,8 +111,9 @@
   /* ASSISTANT DOCK (fixed) */
   .dock {
     position: fixed; right: 40px; bottom: 40px; z-index: 10;
-    display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 12px; pointer-events: none;
   }
+  .dock > * { pointer-events: auto; }
   .bubble {
     background: var(--white); border: 2px solid var(--ink); border-radius: 8px;
     padding: 10px 16px; font-weight: 600; font-size: 16px;
@@ -290,7 +291,7 @@
   .callout b { display: block; font-size: 22px; }
   .callout.sug { background: var(--gold); color: var(--ink); right: calc(20px + min(260px, 38%) + 16px); }
   .callout.warn { background: var(--red); color: var(--white); right: 20px; }
-  .toolbar { position: absolute; left: 20px; bottom: 20px; z-index: 2; display: flex; gap: 10px; }
+  .toolbar { position: absolute; left: 20px; bottom: 20px; z-index: 2; display: flex; gap: 8px; }
   .tool {
     width: 54px; height: 54px; display: grid; place-items: center; cursor: pointer;
     background: var(--white); border: 2px solid var(--ink); border-radius: 8px; color: var(--ink);
@@ -421,13 +422,32 @@
   .settings input[type=range] { width: 100px; vertical-align: middle; accent-color: var(--orange); }
   .custom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 18px; }
   .custom input { width: 66px; }
-  .rowbtns { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+  .rowbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .rowbtns .btn { padding-left: 8px; padding-right: 8px; font-size: 16px; }
   .btn.small { font-size: 18px; padding: 6px 14px; }
   .btn.alt { background: var(--white); }
   .toolbar { right: 20px; flex-wrap: wrap; align-items: center; }
   .sep { width: 2px; align-self: stretch; background: var(--ink); opacity: .2; margin: 4px 2px; }
-  .tool.text { width: auto; height: 44px; padding: 0 12px; font: 700 18px var(--garamond); }
+  .tool.text { width: auto; height: 44px; padding: 0 9px; font: 700 16px var(--garamond); }
   .detail .fix { margin-top: 8px; font-size: 19px; }
+  .heatlegend, .slicebox { position: absolute; left: 20px; bottom: 140px; z-index: 2; display: flex; align-items: center; gap: 8px; background: #fff; border: 2px solid var(--ink, #1B1F27); border-radius: 12px; padding: 6px 12px; font: 700 16px var(--garamond); }
+  .heatlegend i { width: 120px; height: 12px; border-radius: 6px; background: linear-gradient(90deg, #D21404, #FFD700, #2E9E5B); border: 1px solid rgba(0,0,0,.3); }
+  .slicebox input { width: 180px; vertical-align: middle; }
+  .heatlegend + .slicebox { bottom: 188px; }
+  .tips, .vers { margin: 0 0 14px; padding: 0; list-style: none; font: 500 17px/1.3 var(--garamond); }
+  .tips li { background: #fff6e5; border: 2px solid #FF991C; border-radius: 12px; padding: 8px 12px; margin-bottom: 8px; }
+  .tips li b { display: block; font-weight: 700; margin-bottom: 2px; }
+  .vers { counter-reset: v; }
+  .vers li { padding: 4px 0; }
+  #printReport { display: none; }
+  @media print {
+    body > *:not(#printReport) { display: none !important; }
+    #printReport { display: block !important; padding: 24px; font: 15px/1.4 Georgia, serif; color: #000; }
+    #printReport h1 { font-size: 26px; margin: 0 0 4px; } #printReport h2 { font-size: 18px; margin: 18px 0 6px; }
+    #printReport img { max-width: 100%; max-height: 320px; border: 1px solid #999; }
+    #printReport .pi { break-inside: avoid; margin-bottom: 10px; }
+    #printReport table { border-collapse: collapse; } #printReport td { padding: 2px 14px 2px 0; }
+  }
   .toast {
     position: absolute; left: 50%; transform: translateX(-50%); bottom: 84px; z-index: 4; max-width: min(560px, calc(100% - 40px));
     background: var(--ink); color: #fff; border-radius: 8px; padding: 10px 16px; font: 600 19px/1.3 var(--garamond); text-align: center;
@@ -514,6 +534,8 @@
       </div>
       <h3>What I found</h3>
       <ul class="issues" id="issueList"></ul>
+      <div id="tipsWrap" hidden><h3>Tips for this part</h3><ul class="tips" id="tipsList"></ul></div>
+      <div id="verWrap" hidden><h3>Versions</h3><ol class="vers" id="verList"></ol></div>
       <h3>About your model</h3>
       <dl class="info" id="infoList"></dl>
       <details class="settings" id="settingsBox">
@@ -522,7 +544,8 @@
         <div class="custom" id="customBed" hidden><input id="bedX" type="number" min="10" max="2000" aria-label="Bed width in mm"> × <input id="bedY" type="number" min="10" max="2000" aria-label="Bed depth in mm"> × <input id="bedZ" type="number" min="10" max="2000" aria-label="Bed height in mm"> mm</div>
         <label>Nozzle <select id="nozzleSel"><option value="0.2">0.2 mm</option><option value="0.4">0.4 mm</option><option value="0.6">0.6 mm</option><option value="0.8">0.8 mm</option></select></label>
         <label>Material <select id="materialSel"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>Resin</option></select></label>
-        <label>Layer height <select id="layerSel"><option value="0.1">0.1 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.2 mm</option><option value="0.28">0.28 mm</option></select></label>
+        <label>Layer height <select id="layerSel"><option value="0.05">0.05 mm</option><option value="0.1">0.1 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.2 mm</option><option value="0.28">0.28 mm</option></select></label>
+        <label>Filament price <span><input type="number" id="priceIn" min="1" max="500" step="1" aria-label="Price per kilogram in dollars"> $/kg</span></label>
         <label>Overhang limit <span><input type="range" id="angleRange" min="30" max="60" step="5" aria-label="Overhang limit in degrees"> <output id="angleOut">45°</output></span></label>
         <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
       </details>
@@ -531,6 +554,10 @@
         <button class="btn small" id="orientBtn" type="button">Best orientation</button>
         <button class="btn small alt" id="fixBtn" type="button">Download fixed STL</button>
         <button class="btn small alt" id="reportBtn" type="button">Download report</button>
+        <button class="btn small alt" id="pdfBtn" type="button">Print / PDF</button>
+        <button class="btn small alt" id="copyBtn" type="button">Copy summary</button>
+        <button class="btn small alt" id="verBtn" type="button">Upload new version</button>
+        <input type="file" id="verFile" accept=".stl,.3mf" hidden>
       </div>
     </aside>
     <div class="viewwrap" id="viewwrap">
@@ -546,6 +573,8 @@
         <p class="fix" id="detailFixWrap"><b>How to fix:</b> <span id="detailFix"></span></p>
       </div>
       <div class="toast" id="toast" role="status" hidden></div>
+      <div class="heatlegend" id="heatLegend" hidden><span>Thin</span><i></i><span id="heatMaxLbl">Thick</span></div>
+      <div class="slicebox" id="sliceBox" hidden><label>Cut height <input type="range" id="sliceRange" min="3" max="100" value="100" aria-label="Cut height of the model"></label></div>
       <div class="toolbar" role="toolbar" aria-label="Model tools">
         <button class="tool" id="arrowBtn" type="button" aria-pressed="true" title="Select: click a highlighted part to see why" aria-label="Select"><svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M6 3v17l4.6-4.4 3.4 7 3-1.4-3.4-6.8H20Z" fill="currentColor"/></svg></button>
         <button class="tool" id="spinBtn" type="button" aria-pressed="false" title="Spin the model" aria-label="Spin"><svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><path d="M22 14a8 8 0 1 1-2.6-5.9" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><path d="M21.5 3v6.5H15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -555,8 +584,10 @@
         <button class="tool text" type="button" data-viewpreset="top">Top</button>
         <button class="tool text" type="button" data-viewpreset="side">Side</button>
         <span class="sep" aria-hidden="true"></span>
-        <button class="tool text" id="wireBtn" type="button" aria-pressed="false">Wireframe</button>
+        <button class="tool text" id="wireBtn" type="button" aria-pressed="false">Wire</button>
         <button class="tool text" id="marksBtn" type="button" aria-pressed="true">Highlights</button>
+        <button class="tool text" id="heatBtn" type="button" aria-pressed="false" title="Colour every wall by how thick it is">Thickness</button>
+        <button class="tool text" id="sliceBtn" type="button" aria-pressed="false" title="Cut the model open to see inside">Slice</button>
       </div>
     </div>
   </div>
@@ -692,7 +723,7 @@
     v.yaw = o.yaw != null ? o.yaw : 0.7;
     v.pitch = o.pitch != null ? o.pitch : 0.6;
     v.zoom = 1; v.auto = !!o.auto && !reduce;
-    v.plate = o.plate !== false; v.marks = false; v.wire = false;
+    v.plate = o.plate !== false; v.marks = false; v.wire = false; v.heat = null; v.heatMax = 1; v.cut = null;
     v.mesh = null; v.n = 0; v.h = 0; v.anchors = null; v.flags = null; v.dirty = true;
     v.onDraw = null; v.onTap = null; v.screen = {};
     viewers.push(v);
@@ -739,10 +770,11 @@
       }
       if (v.mesh) {
         var m = v.mesh, step = Math.max(1, Math.ceil(v.n / 20000)), T = Math.ceil(v.n / step);
-        var S = new Float32Array(T * 6), D = new Float32Array(T), SH = new Float32Array(T), TN = new Uint8Array(T), cnt = 0;
+        var S = new Float32Array(T * 6), D = new Float32Array(T), SH = new Float32Array(T), TN = new Uint8Array(T), TH = new Float32Array(T), cnt = 0;
         var fl = v.marks && v.flags;
         for (var t = 0; t < v.n; t += step) {
           var o9 = t * 9, ds = 0, k;
+          if (v.cut != null && (m[o9 + 2] + m[o9 + 5] + m[o9 + 8]) / 3 > v.cut) continue;
           for (k = 0; k < 3; k++) {
             var qq = o9 + k * 3, x = m[qq], y = m[qq + 1], z = m[qq + 2] - zc;
             var x1 = x * cy - y * sy, y1 = x * sy + y * cy, sv = z * cp + y1 * sp, d = y1 * cp - z * sp, f = 320 / (320 + d);
@@ -754,6 +786,7 @@
           SH[cnt] = 0.4 + 0.6 * Math.abs((nx * -0.35 + ny * 0.55 + nz * -0.75) / nl);
           D[cnt] = ds / 3; TN[cnt] = 0;
           if (fl) TN[cnt] = fl[t];
+          TH[cnt] = v.heat ? v.heat[t] : -1;
           cnt++;
         }
         var order = new Array(cnt); for (i = 0; i < cnt; i++) order[i] = i;
@@ -761,7 +794,11 @@
         ctx.lineWidth = 0.7; ctx.lineJoin = 'round';
         for (var j = 0; j < cnt; j++) {
           var e = order[j], sh = SH[e], r = 160, g = 170, bl = 184;
-          if (TN[e] === 1) { r = 210; g = 20; bl = 4; } else if (TN[e] === 2) { r = 255; g = 215; bl = 0; }
+          if (TH[e] >= 0) {
+            var u = Math.min(1, TH[e] / v.heatMax);
+            if (u < 0.5) { var a2 = u / 0.5; r = 210 + 45 * a2; g = 20 + 195 * a2; bl = 4 * (1 - a2); }
+            else { var b2 = (u - 0.5) / 0.5; r = 255 - 209 * b2; g = 215 - 57 * b2; bl = 91 * b2; }
+          } else if (TN[e] === 1) { r = 210; g = 20; bl = 4; } else if (TN[e] === 2) { r = 255; g = 215; bl = 0; }
           var col = 'rgb(' + Math.round(r * sh) + ',' + Math.round(g * sh) + ',' + Math.round(bl * sh) + ')';
           ctx.fillStyle = col; ctx.strokeStyle = col;
           ctx.beginPath(); ctx.moveTo(S[e * 6], S[e * 6 + 1]); ctx.lineTo(S[e * 6 + 2], S[e * 6 + 3]); ctx.lineTo(S[e * 6 + 4], S[e * 6 + 5]); ctx.closePath();
@@ -1531,9 +1568,12 @@
   }
   function issueById(p, id) { return p && p.res ? p.res.issues.filter(function (x) { return x.id === id; })[0] : null; }
 
+  var heatOn = false;
   function applyResult(p) {
     var res = p.res;
     viewer.flags = flagsFor(res, viewer.n, focusId);
+    viewer.heat = heatOn ? res.thick : null; viewer.heatMax = res.heatMax || 1;
+    $('heatMaxLbl').textContent = (Math.round(res.heatMax * 10) / 10) + ' mm +';
     var fi = focusId && issueById(p, focusId);
     viewer.anchors = fi ? { f: fi.anchor } : { w: res.w && res.w.anchor, s: res.s && res.s.anchor };
     warnBox.hidden = !!fi || !(res.w && res.w.anchor); sugBox.hidden = !!fi || !(res.s && res.s.anchor);
@@ -1552,7 +1592,7 @@
     $('scoreSub').textContent = res.issues.length ? res.issues.length + ' thing' + (res.issues.length === 1 ? '' : 's') + ' to look at' : 'No problems found';
     var ul = $('issueList'); ul.innerHTML = '';
     if (!res.issues.length) {
-      var li0 = document.createElement('li'); li0.className = 'allgood'; li0.textContent = 'I checked for holes, flipped faces, thin walls, small details, overhangs, bed contact and size, and found nothing wrong. Nice model!'; ul.appendChild(li0);
+      var li0 = document.createElement('li'); li0.className = 'allgood'; li0.textContent = 'I checked for holes, flipped faces, thin walls, small details, overhangs, bridges, sharp points, small holes, close parts, bed contact and size, and found nothing wrong. Nice model!'; ul.appendChild(li0);
     }
     res.issues.forEach(function (it) {
       var li = document.createElement('li'), b = document.createElement('button');
@@ -1570,10 +1610,17 @@
       ['Parts', String(M.bodies || 1)],
       ['Fits printer', M.fits === 'yes' ? 'Yes' : M.fits === 'turn' ? 'If turned 90°' : 'No'],
       ['Plastic (est.)', r1(M.grams) + ' g ' + settings.material],
-      ['Print time (est.)', fmtTime(M.minutes)]
+      ['Print time (est.)', fmtTime(M.minutes)],
+      ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]
     ];
     var dl = $('infoList'); dl.innerHTML = '';
     rows.forEach(function (r) { var dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = r[0]; dd.textContent = r[1]; dl.appendChild(dt); dl.appendChild(dd); });
+    var tl = $('tipsList'); tl.innerHTML = ''; $('tipsWrap').hidden = !res.tips.length;
+    res.tips.forEach(function (t) { var li = document.createElement('li'), b = document.createElement('b'); b.textContent = t.title; li.appendChild(b); li.appendChild(document.createTextNode(t.text)); tl.appendChild(li); });
+    var vl = $('verList'); vl.innerHTML = ''; $('verWrap').hidden = !(p.history && p.history.length);
+    if (p.history) p.history.concat([{ file: p.file, score: res.score, n: res.issues.length, now: true }]).forEach(function (h, i) {
+      var li = document.createElement('li'); li.textContent = 'Version ' + (i + 1) + ': ' + h.file + ', score ' + h.score + ', ' + (h.n ? h.n + ' thing' + (h.n === 1 ? '' : 's') + ' to look at' : 'no problems') + (h.now ? ' (this one)' : ''); vl.appendChild(li);
+    });
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
     $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
     $('fixBtn').disabled = !p.mesh;
@@ -1587,7 +1634,7 @@
     $('printerSel').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
     $('bedX').value = settings.bed[0]; $('bedY').value = settings.bed[1]; $('bedZ').value = settings.bed[2];
     $('nozzleSel').value = String(settings.nozzle); $('materialSel').value = settings.material; $('layerSel').value = String(settings.layer);
-    $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
+    $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
     var p = cur(); if (p) $('unitSel2').value = p.units || 'mm';
   }
   function refreshProject() {
@@ -1596,6 +1643,7 @@
     $('projTagName').textContent = p ? p.name : 'Project Name';
     projTag.classList.toggle('empty', !p);
     viewer.marks = true; $('marksBtn').setAttribute('aria-pressed', 'true');
+    viewer.heat = null; viewer.cut = null; $('sliceRange').value = 100;
     viewer.setMesh(p ? p.mesh : null); viewer.flags = null; viewer.anchors = null;
     warnBox.hidden = sugBox.hidden = true;
     stage.classList.toggle('has-report', !!p && !p.unreadable);
@@ -1611,6 +1659,7 @@
       if (tok !== runToken || cur() !== p) return;
       p.res = analyze(p.norm, viewer.n, optsFor(p));
       applyResult(p); renderReport(p); setBubble();
+      if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
       if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
   }
@@ -1665,6 +1714,16 @@
     var on = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(on)); viewer.marks = on; viewer.dirty = true;
     var p = cur(); if (p && p.res && !focusId) { if (on) applyResult(p); else warnBox.hidden = sugBox.hidden = true; }
   });
+  $('heatBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    heatOn = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(heatOn));
+    $('heatLegend').hidden = !heatOn; applyResult(p);
+  });
+  $('sliceBtn').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true'; this.setAttribute('aria-pressed', String(on));
+    $('sliceBox').hidden = !on; if (!on) { viewer.cut = null; $('sliceRange').value = 100; } viewer.dirty = true;
+  });
+  $('sliceRange').addEventListener('input', function () { viewer.cut = +this.value >= 100 ? null : viewer.h * (+this.value / 100); viewer.dirty = true; });
   projTag.addEventListener('click', function () {
     projList.innerHTML = '';
     projects.forEach(function (p, i) {
@@ -1689,7 +1748,8 @@
     $(id).addEventListener('change', function () { var v = Math.max(10, Math.min(2000, +this.value || 200)); settings.bed[i] = v; saveSettings(); syncSettings(); recheck(); });
   });
   $('nozzleSel').addEventListener('change', function () { settings.nozzle = +this.value; saveSettings(); recheck(); });
-  $('materialSel').addEventListener('change', function () { settings.material = this.value; saveSettings(); recheck(); });
+  $('materialSel').addEventListener('change', function () { settings.material = this.value; settings.price = PRICES[this.value] || 20; saveSettings(); syncSettings(); recheck(); });
+  $('priceIn').addEventListener('change', function () { settings.price = Math.max(1, Math.min(500, +this.value || 20)); saveSettings(); syncSettings(); recheck(); });
   $('layerSel').addEventListener('change', function () { settings.layer = +this.value; saveSettings(); recheck(); });
   $('angleRange').addEventListener('input', function () { $('angleOut').textContent = this.value + '°'; });
   $('angleRange').addEventListener('change', function () { settings.overhang = +this.value; saveSettings(); recheck(); });
@@ -1879,18 +1939,60 @@
     p.unfixed = p.mesh; p.mesh = r.mesh; p.res = null; p.fixNote = { before: before, bits: bits, left: r.stats.left };
     refreshProject();
   });
-  $('reportBtn').addEventListener('click', function () {
-    var p = cur(); if (!p || !p.res) return;
+  function reportText(p) {
     var r = p.res, M = r.metrics, L = [];
     L.push('MeshCheck report: ' + p.name, 'File: ' + p.file, 'Checked: ' + new Date().toLocaleString(), '');
     L.push('Printability: ' + r.score + '/100 (' + r.verdict + ')', '');
     L.push('Settings: ' + PRINTERS[settings.printer].name.replace(/ \(.*/, '') + ' (' + settings.bed.join(' x ') + ' mm), ' + settings.nozzle + ' mm nozzle, ' + settings.material + ', ' + settings.layer + ' mm layers, overhang limit ' + settings.overhang + ' degrees, model units ' + UNAME[p.units || 'mm'], '');
-    L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated plastic: ' + r1(M.grams) + ' g', 'Estimated print time: ' + fmtTime(M.minutes), '');
+    L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated ' + (r.resin ? 'resin' : 'plastic') + ': ' + r1(M.grams) + ' g', 'Estimated print time: ' + fmtTime(M.minutes), 'Estimated material cost: $' + (Math.round(M.cost * 100) / 100).toFixed(2), '');
     if (p.info) L.push('About the part: ' + p.info, '');
     L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
     r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How to fix: ' + it.fix); });
+    if (r.tips.length) { L.push('', 'Tips for this part:'); r.tips.forEach(function (t) { L.push('- ' + t.title + ': ' + t.text); }); }
     L.push('', 'These checks are estimates. Always preview the model in your slicer before printing.');
-    save(new Blob([L.join('\n')], { type: 'text/plain' }), safeName(p) + '-report.txt');
+    return L.join('\n');
+  }
+  $('reportBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    save(new Blob([reportText(p)], { type: 'text/plain' }), safeName(p) + '-report.txt');
+  });
+  $('copyBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    var r = p.res, lines = [p.name + ': ' + r.score + '/100, ' + r.verdict, r.metrics.x.toFixed(1) + ' x ' + r.metrics.y.toFixed(1) + ' x ' + r.metrics.z.toFixed(1) + ' mm, about ' + r1(r.metrics.grams) + ' g, ' + fmtTime(r.metrics.minutes)];
+    r.issues.forEach(function (it) { lines.push('- ' + it.title + ' (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')'); });
+    if (!r.issues.length) lines.push('- No problems found');
+    lines.push('Checked with MeshCheck');
+    var txt = lines.join('\n');
+    function ok() { toast('Copied. Paste it into a message or your notes.'); }
+    function fallback() { var ta = document.createElement('textarea'); ta.value = txt; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); ok(); } catch (e) { toast('Couldn’t copy. Use Download report instead.'); } ta.remove(); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, fallback); else fallback();
+  });
+  $('pdfBtn').addEventListener('click', function () {
+    var p = cur(); if (!p || !p.res) return;
+    var r = p.res, M = r.metrics, pr = $('printReport'), snap = '';
+    try { viewer.draw(); snap = $('viewCanvas').toDataURL('image/png'); } catch (e) {}
+    function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    var h = '<h1>MeshCheck report: ' + esc(p.name) + '</h1><div>' + esc(p.file) + ' · ' + esc(new Date().toLocaleString()) + '</div>';
+    h += '<h2>' + r.score + ' / 100 · ' + esc(r.verdict) + '</h2>' + (snap ? '<img alt="Your model" src="' + snap + '">' : '');
+    h += '<h2>Numbers</h2><table>' + [['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'], ['Volume', r1(M.volume / 1000) + ' cm³'], ['Parts', M.bodies || 1], ['Printer', PRINTERS[settings.printer].name], ['Material', settings.material + ', ' + settings.nozzle + ' mm nozzle, ' + settings.layer + ' mm layers'], [r.resin ? 'Resin (est.)' : 'Plastic (est.)', r1(M.grams) + ' g'], ['Print time (est.)', fmtTime(M.minutes)], ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]].map(function (x) { return '<tr><td><b>' + x[0] + '</b></td><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>';
+    if (p.info) h += '<h2>About the part</h2><div>' + esc(p.info) + '</div>';
+    h += '<h2>' + (r.issues.length ? 'Things to look at' : 'No problems found') + '</h2>';
+    r.issues.forEach(function (it) { h += '<div class="pi"><b>' + esc(it.title) + '</b> (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')<br>' + esc(it.text) + '<br><i>How to fix: ' + esc(it.fix) + '</i></div>'; });
+    if (r.tips.length) { h += '<h2>Tips for this part</h2>'; r.tips.forEach(function (t) { h += '<div class="pi"><b>' + esc(t.title) + '</b><br>' + esc(t.text) + '</div>'; }); }
+    h += '<p><small>These checks are estimates. Always preview the model in your slicer before printing.</small></p>';
+    pr.innerHTML = h; setTimeout(function () { window.print(); }, 50);
+  });
+  $('verBtn').addEventListener('click', function () { if (cur()) $('verFile').click(); });
+  $('verFile').addEventListener('change', function () {
+    var p = cur(), f = this.files[0]; this.value = ''; if (!p || !f) return;
+    if (!OK.test(f.name)) { toast('Please choose an STL or 3MF file.'); return; }
+    readMesh(f).then(function (m2) {
+      if (!m2 || m2.length < 9) { toast('I couldn’t read that file. Try exporting it again.'); return; }
+      p.history = (p.history || []).concat([{ file: p.file, score: p.res ? p.res.score : 0, n: p.res ? p.res.issues.length : 0 }]);
+      p.verPrev = p.res ? p.res.score : null;
+      p.mesh = m2; p.file = f.name; p.units = m2.units || p.units; p.res = null; p.orig = null; p.unfixed = null;
+      refreshProject();
+    }, function () { toast('I couldn’t read that file.'); });
   });
 
   /* ---------- My Archive ---------- */
@@ -1918,22 +2020,31 @@
     var p = cur(), r = p && p.res, has = function () { for (var i = 0; i < arguments.length; i++) if (q.indexOf(arguments[i]) >= 0) return true; return false; };
     var issue = function (id) { return r && issueById(p, id); };
     if (has('hello', 'hi ', 'hey') && q.length < 12) return 'Hi! Ask me about your model, your settings, or how to fix something I found.';
-    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL or 3MF for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs, bed contact, tall thin shapes and whether it fits your printer. Ask me about any of them, or what to fix first.';
+    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL or 3MF for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs and long bridges, sharp points, small holes, sealed pockets, parts too close together, bed contact, tall thin shapes and whether it fits your printer. I can also repair many problems with the “Fix it for me” button. Ask me about any of them, or what to fix first.';
     if (has('file', 'format', 'obj', 'step', 'upload', 'support stl')) return 'I can read STL (binary or text) and 3MF files. Export your design from your modeling program as STL or 3MF, then drop it on the home page or press the + button.';
     if (has('unit', 'inch', 'millimet', 'scale', 'too big', 'too small')) return 'STL files don’t say what units they use, so I assume millimeters unless you change it in Print settings (3MF files tell me themselves). If your sizes look off by 25 or 10 times, switch the units.';
     if (has('nozzle')) return 'Your nozzle is set to ' + settings.nozzle + ' mm. I treat anything smaller than that as too small to print, and walls under ' + r1(settings.nozzle * 3) + ' mm as thin. Change it in Print settings if you use a different one.';
-    if (has('material', 'pla', 'petg', 'abs', 'tpu', 'resin', 'filament type')) return 'Material only changes my weight estimate here (' + settings.material + '). For strength, PETG and ABS handle stress better than PLA, and thicker walls help most of all.';
+    if (has('material', 'pla', 'petg', 'abs', 'tpu', 'resin', 'filament type')) return 'Your material is ' + settings.material + '. It changes my weight and cost estimates' + (settings.material === 'Resin' ? ', and switches me to resin rules (finer details are allowed, but big flat faces and sealed pockets are problems)' : '') + '. For strength, PETG and ABS handle stress better than PLA, and thicker walls help most of all.';
     if (!p) return 'Upload a model first (the + button) and I’ll check it for you!';
     if (p.unreadable) return 'I couldn’t read that file, so I can’t check it. Try exporting it again as binary STL or 3MF.';
     if (!r) return 'Give me a second, I’m still checking your model.';
     if (has('score', 'ready', 'good', 'ok ', 'okay', 'print it', 'safe')) return 'Your score is ' + r.score + '/100: ' + r.verdict.toLowerCase() + '. ' + (r.issues.length ? 'Start with “' + r.issues[0].title + '”.' : 'I found nothing wrong, but always preview it in your slicer too.');
     if (has('fix first', 'first', 'priority', 'what should', 'fix', 'problem', 'wrong', 'issue')) return r.issues.length ? 'Start with “' + r.issues[0].title + '”. ' + r.issues[0].fix : 'I didn’t find any problems in “' + p.name + '”.';
+    if (has('fix it', 'repair', 'auto')) return r.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) ? 'Press “Fix it for me” in the panel. I’ll close holes, flip inside-out faces, and remove duplicate or empty faces, then check again. You can undo it.' : 'The “Fix it for me” button repairs holes, inside-out faces, duplicates and loose specks. I don’t see any of those in your model. Things like thin walls need a change in your modeling program.';
+    if (has('heat', 'thickness map', 'thickness view')) return 'Press “Thickness” under the model. Red walls are thin, yellow are borderline and green are thick enough for your ' + settings.nozzle + ' mm nozzle.';
+    if (has('slice', 'cross', 'inside', 'cut open')) return 'Press “Slice” under the model, then drag the slider to cut the model open from the top. It helps you see hollow pockets and wall thickness.';
+    if (has('pdf', 'share', 'copy', 'send')) return 'Use “Print / PDF” for a one-page report, “Copy summary” for a short message you can paste, or “Download report” for a text file.';
+    if (has('version', 'new file', 'again', 'updated')) return 'Press “Upload new version” to swap in your updated file. I’ll check it and tell you how the score changed.';
+    if (has('bridge', 'span')) { var br = issue('bridge'); return br ? br.text + ' ' + br.fix : 'I didn’t find any long flat spans hanging in the air.'; }
+    if (has('sharp', 'spike', 'needle', 'point', 'knife', 'razor')) { var sh = issue('sharp') || issue('knife'); return sh ? sh.text + ' ' + sh.fix : 'I didn’t find any needle-sharp points or razor-thin edges.'; }
+    if (has('clearance', 'tolerance', 'too close', 'fuse', 'fit together', 'bolt')) { var cl = issue('closeparts') || issue('smallholes'); return cl ? cl.text + ' ' + cl.fix : 'I didn’t find parts that are too close together or tight holes. For parts that fit together, leave 0.2 to 0.4 mm between them.'; }
+    if (has('cavity', 'hollow', 'pocket', 'drain')) { var cv = issue('cavity'); return cv ? cv.text + ' ' + cv.fix : 'I didn’t find any sealed hollow pockets inside your model.'; }
     if (has('overhang', 'support')) { var o = issue('overhang'); return o ? o.text + ' ' + o.fix : 'I didn’t find overhangs beyond ' + settings.overhang + '° in your model, so it should print without supports. (You can change the angle in Print settings.)'; }
     if (has('thin', 'wall', 'snap', 'break', 'strong', 'strength')) { var t = issue('thin') || issue('small'); return t ? t.text + ' ' + t.fix : 'I didn’t find thin walls. For stronger parts, make walls thicker than ' + r1(settings.nozzle * 3) + ' mm and print with more perimeters.'; }
     if (has('hole', 'manifold', 'watertight', 'repair', 'gap', 'inside out', 'normal', 'flip')) { var h = issue('holes') || issue('overlap') || issue('inverted'); return h ? h.text + ' ' + h.fix : 'The surface of your model is closed and clean, with no holes or flipped faces.'; }
     if (has('orient', 'rotate', 'turn', 'position', 'lay', 'flat')) return 'Press “Best orientation” in the panel and I’ll try six ways of laying your model down and pick the one with the least overhang. ' + (issue('flatbase') || issue('contact') ? 'Your bed contact is small right now, so that may help.' : '');
     if (has('time', 'how long', 'hours')) return 'Rough guess: ' + fmtTime(r.metrics.minutes) + ' with a ' + settings.nozzle + ' mm nozzle and ' + settings.layer + ' mm layers. Your slicer will give the exact number.';
-    if (has('weight', 'grams', 'much plastic', 'cost', 'filament')) return 'About ' + r1(r.metrics.grams) + ' g of ' + settings.material + ' with 20% infill. Your slicer will have the exact figure.';
+    if (has('weight', 'grams', 'much plastic', 'cost', 'filament', 'price', 'how much')) return 'About ' + r1(r.metrics.grams) + ' g of ' + settings.material + (r.resin ? '' : ' with 20% infill') + ', which costs roughly $' + (Math.round(r.metrics.cost * 100) / 100).toFixed(2) + ' at $' + settings.price + ' per kg (change the price in Print settings). Your slicer will have the exact figure.';
     if (has('size', 'fit', 'bed', 'dimension', 'big')) return 'Your model is ' + r1(r.metrics.x) + ' × ' + r1(r.metrics.y) + ' × ' + r1(r.metrics.z) + ' mm. ' + (r.metrics.fits === 'yes' ? 'It fits your printer.' : r.metrics.fits === 'turn' ? 'It fits if you turn it 90° on the bed.' : 'It does not fit your printer’s ' + settings.bed.join(' × ') + ' mm bed, so scale it down or split it.');
     if (has('brim', 'raft', 'adhesion', 'stick', 'warp')) return 'A brim helps tall, narrow or small-base models stay stuck to the bed. Your bed contact is about ' + r1(r.metrics.contact) + ' mm².';
     return r.issues.length ? 'I’m not sure about that one, but here’s what matters most for “' + p.name + '”: ' + r.issues[0].title + '. Ask me how to fix it!' : 'I’m not sure about that one, but your model looks good! Try asking about the score, time, or weight.';
@@ -1985,5 +2096,6 @@
   renderAvatars(); renderProfile(); setView('home');
 })();
 </script>
+<div id="printReport" aria-hidden="true"></div>
 </body>
 </html>
