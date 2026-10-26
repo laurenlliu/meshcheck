@@ -1876,9 +1876,9 @@
   function optsFor(p) {
     return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, purpose: p.info || '' };
   }
-  function toast(msg) {
+  function toast(msg, ms) {
     var t = $('toast'); t.textContent = msg; t.hidden = false;
-    clearTimeout(toast.h); toast.h = setTimeout(function () { t.hidden = true; }, 5200);
+    clearTimeout(toast.h); toast.h = setTimeout(function () { t.hidden = true; }, ms || 5200);
   }
   function showDetail(it) {
     if (!it) return;
@@ -1987,7 +1987,7 @@
       if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
       if (p.orientNote && p.orig && p.res.score < p.orientNote.score) { p.mesh = p.orig; p.orig = null; p.orientNote = null; p.res = null; refreshProject(); toast('I tried turning the model, but the new position scored lower, so I left it the way your file had it.'); return; }
       if (p.fixNote && p.unfixed && p.res.score < p.fixNote.before) { var bf = p.fixNote.before, nw = p.res.score; p.mesh = p.unfixed; p.unfixed = null; p.fixNote = null; p.res = null; refreshProject(); toast('I tried repairing this, but the score dropped from ' + bf + ' to ' + nw + ', so I put your original back. This one needs fixing in your modeling program.'); return; }
-      if (p.orientNote) { var on = p.orientNote; p.orientNote = null; toast('I turned the model onto a better face (tried ' + on.tried + ' angles). Overhang dropped from about ' + Math.round(on.from * 100) + '% to ' + Math.round(on.to * 100) + '% of the surface. Press the button again to undo.'); }
+      if (p.orientNote) { var on = p.orientNote; p.orientNote = null; toast(on.text, 9000); }
       if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
   }
@@ -2160,21 +2160,41 @@
     c.forEach(function (v) { if (!out.some(function (u) { return u[0] * v[0] + u[1] * v[1] + u[2] * v[2] > 0.985; })) out.push(v); });
     return out;
   }
+  function normForSlice(src) {   // the same fitting the viewer does, so a turned copy can be sliced
+    var n = Math.floor(src.length / 9), m = new Float32Array(n * 9), i, k, c, mn = [1e30, 1e30, 1e30], mx = [-1e30, -1e30, -1e30];
+    for (i = 0; i < n * 9; i += 3) for (k = 0; k < 3; k++) { c = src[i + k]; if (c < mn[k]) mn[k] = c; if (c > mx[k]) mx[k] = c; }
+    var dim = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) || 1, s = 80 / dim, cx = (mn[0] + mx[0]) / 2, cy = (mn[1] + mx[1]) / 2;
+    for (i = 0; i < n * 9; i += 3) { m[i] = (src[i] - cx) * s; m[i + 1] = (src[i + 1] - cy) * s; m[i + 2] = (src[i + 2] - mn[2]) * s; }
+    return { m: m, n: n, s: s };
+  }
+  function suppText(g) { return g < 0.05 ? 'almost none' : 'about ' + r1(g) + ' g'; }
   $('orientBtn').addEventListener('click', function () {
     var p = cur(); if (!p || !p.res) return;
     if (p.orig) { p.mesh = p.orig; p.orig = null; p.res = null; refreshProject(); toast('Back to the orientation from your file.'); return; }
     var btn = this; btn.disabled = true; toast('Trying lots of ways to lay your model down…');
     setTimeout(function () {
-      var cands = orientCandidates(p.mesh), best = null, bs = 1e30, base = null;
+      var units = p.units || 'mm', resin = settings.material === 'Resin', mat = MATERIALS[settings.material] || 1.24, cands = orientCandidates(p.mesh), list = [];
       cands.forEach(function (nv) {
-        var m2 = rotToDown(p.mesh, nv[0], nv[1], nv[2]), sc = orientScore(m2, 0.6 / MM[p.units || 'mm'] * (settings.nozzle / 0.4));
-        var dim = Math.max(sc.height, 1e-9), val = sc.over - 0.15 * Math.min(sc.contact, 0.3) + 0.04 * Math.min(1, sc.height / (sc.span || dim));
-        if (nv[0] === 0 && nv[1] === 0 && nv[2] === -1) base = { val: val, over: sc.over };
-        if (val < bs - 1e-9) { bs = val; best = { m: m2, over: sc.over, n: nv }; }
+        var m2 = rotToDown(p.mesh, nv[0], nv[1], nv[2]), sc = orientScore(m2, 0.6 / MM[units] * (settings.nozzle / 0.4));
+        list.push({ nv: nv, m: m2, sc: sc, base: nv[0] === 0 && nv[1] === 0 && nv[2] === -1, cost: sc.over - 0.15 * Math.min(sc.contact, 0.3) + 0.04 * Math.min(1, sc.height / (sc.span || sc.height || 1)) });
       });
+      list.sort(function (x, y) { return x.cost - y.cost; });
+      var short = list.slice(0, 5); if (!short.some(function (c) { return c.base; })) short.push(list.filter(function (c) { return c.base; })[0]);
+      short = short.filter(Boolean);
+      // second look: really slice the best few and count the support plastic each one needs
+      short.forEach(function (c) {
+        var nm = normForSlice(c.m), sr = null;
+        try { sr = slicePrint(nm.m, nm.n, { perMm: nm.s / MM[units], layer: resin ? 0.05 : settings.layer, nozzle: resin ? 0.2 : settings.nozzle, overhang: settings.overhang, resin: resin, infill: (settings.infill || 20) / 100 }); } catch (e) { sr = null; }
+        c.sr = sr; c.g = sr ? sr.supportMm3 / 1000 * mat : null;
+        c.cost2 = (sr && sr.volumeMm3 > 0 ? sr.supportMm3 / sr.volumeMm3 : c.sc.over) - 0.15 * Math.min(c.sc.contact, 0.3) + 0.04 * Math.min(1, c.sc.height / (c.sc.span || c.sc.height || 1));
+      });
+      var base = short.filter(function (c) { return c.base; })[0], best = short.slice().sort(function (x, y) { return x.cost2 - y.cost2; })[0];
       btn.disabled = false;
-      if (!best || !base || bs > base.val - 0.01) { toast('Your model is already lying in about the best way I could find (I tried ' + cands.length + ' angles).'); return; }
-      var sc0 = p.res.score; p.orig = p.mesh; p.mesh = best.m; p.res = null; p.orientNote = { from: base.over, to: best.over, tried: cands.length, score: sc0 }; refreshProject();
+      if (!best || !base || best === base || best.cost2 > base.cost2 - 0.01) {
+        toast('Your model is already lying in about the best way I could find. I tried ' + cands.length + ' different faces and none needs less support than this one' + (base && base.g != null ? ' (supports: ' + suppText(base.g) + ')' : '') + '.', 9000); return;
+      }
+      var sc0 = p.res.score, note = 'I turned the model onto a better face (tried ' + cands.length + ' angles).' + (base.g != null && best.g != null ? (base.g < 0.05 && best.g < 0.05 ? ' Neither way needs supports, but this one sits on a bigger flat area, so it sticks to the bed better.' : ' Supports go from ' + suppText(base.g) + ' to ' + suppText(best.g) + '.') : ' Overhang drops from about ' + Math.round(base.sc.over * 100) + '% to ' + Math.round(best.sc.over * 100) + '% of the surface.') + ' Press the button again to undo.';
+      p.orig = p.mesh; p.mesh = best.m; p.res = null; p.orientNote = { text: note, score: sc0 }; refreshProject();
     }, 30);
   });
 
