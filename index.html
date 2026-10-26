@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MeshCheck</title>
+<title>MeshCheck: free 3D print checker for STL and 3MF files</title>
+<meta name="description" content="Check your 3D model before you print it. MeshCheck finds holes, thin walls, overhangs and other problems in STL and 3MF files, explains how to fix them, and can repair many automatically. Your files never leave your browser.">
+<meta property="og:title" content="MeshCheck: free 3D print checker">
+<meta property="og:description" content="Find problems in your 3D model before you waste filament. Works with STL and 3MF files, right in your browser.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#FFCBD1">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23FFB347'/%3E%3Cstop offset='1' stop-color='%23EB5406'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M32 4 56 18v28L32 60 8 46V18Z' fill='url(%23g)'/%3E%3Cpath d='m20 33 8 8 16-18' fill='none' stroke='%23fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -359,6 +364,15 @@
   }
   .pfield::placeholder { color: rgba(27, 31, 39, .55); }
   .authform { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .checks { max-width: 900px; margin: 0 auto; padding: 24px 20px; font-family: var(--garamond); }
+  .checks h2 { font-size: 30px; margin: 20px 0 10px; }
+  .steps3 { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .steps3 li { background: #fff; border: 2px solid var(--ink); border-radius: 12px; padding: 12px 14px; font-size: 20px; line-height: 1.3; }
+  .steps3 b { display: block; font-size: 24px; margin-bottom: 4px; }
+  .chips { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chips li { background: var(--gold); border: 2px solid var(--ink); border-radius: 999px; padding: 4px 14px; font: 600 18px var(--garamond); }
+  .foot { max-width: 900px; margin: 10px auto 120px; padding: 16px 20px; font: 500 17px/1.4 var(--garamond); display: flex; flex-direction: column; gap: 6px; border-top: 2px solid rgba(27,31,39,.25); }
+  .foot a { color: inherit; font-weight: 700; }
   .privacy { display: block; font: 600 17px var(--garamond); opacity: .85; margin: 4px 0 8px; }
   .okmsg { margin: 0; color: #146B3A; font-size: 20px; font-weight: 700; }
   .syncnote { margin: 0; font-size: 18px; opacity: .8; }
@@ -426,6 +440,7 @@
   .custom { display: flex; gap: 6px; align-items: center; margin-top: 8px; font-size: 18px; }
   .custom input { width: 66px; }
   .rowbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+  .rowbtns .wide { grid-column: 1 / -1; }
   .rowbtns .btn { padding-left: 8px; padding-right: 8px; font-size: 16px; }
   .btn.small { font-size: 18px; padding: 6px 14px; }
   .btn.alt { background: var(--white); }
@@ -468,7 +483,7 @@
   @media (max-width: 900px) {
     .stagebox.has-report { grid-template-columns: 1fr; height: auto; overflow: visible; }
     .stagebox.has-report .viewwrap { height: 64vh; min-height: 420px; order: 1; }
-    .stagebox.has-report .report { order: 2; border-right: 0; border-top: 2px solid var(--ink); overflow: visible; padding-bottom: 200px; }
+    .stagebox.has-report .report { order: 2; border-right: 0; border-top: 2px solid var(--ink); overflow: visible; padding-bottom: 200px; padding-right: 76px; }
     .toolbar { left: 12px; right: 12px; bottom: 12px; }
     .detail { bottom: 120px; }
   }
@@ -493,7 +508,7 @@
   <div class="stage">
     <div class="hero">
       <h1>Welcome to MeshCheck!</h1>
-      <p>Tailor to all of your 3D modeling needs</p>
+      <p>Check your 3D model before you print it. Find holes, thin walls and overhangs in seconds, and learn how to fix them.</p>
     </div>
     <a class="scroll-hint" href="#start">
       Scroll down
@@ -526,6 +541,24 @@
     <p>MeshCheck is a website where you can safely check your 3D model to catch potential problems before a model is sent to a 3D printer. Users can upload an STL or 3MF file that they have exported from their 3D modeling software, provide information about what the part is, what it is used for, and how it is expected to function. MeshCheck then analyzes the model’s geometry and printing characteristics to identify issues such as weak areas, unsupported features, non-manifold geometry, difficult-to-print details, and other potential problems. Understanding the purpose of the part allows MeshCheck to provide better feedback.</p>
     <p>The goal of MeshCheck is to reduce failed prints and unnecessary wastes of filament and design iterations. Instead of discovering a problem after spending hours waiting for a prototype to be finished printing, MeshCheck gives all of the 3D printing results to you instantly, and also gives you feedback on improvements in your design. We hope to increase the chances that your first print is successful. This allows everyone to spend less time troubleshooting and more time developing and testing their prototypes.</p>
   </section>
+
+  <section class="checks" aria-label="What MeshCheck checks">
+    <h2>How it works</h2>
+    <ol class="steps3">
+      <li><b>1. Upload</b>Drop an STL or 3MF file exported from your 3D modeling program.</li>
+      <li><b>2. Review</b>See a score, the exact trouble spots in color, and plain-English advice.</li>
+      <li><b>3. Fix and print</b>Repair many problems with one click, then download the fixed file.</li>
+    </ol>
+    <h2>What it looks for</h2>
+    <ul class="chips">
+      <li>Holes and gaps</li><li>Inside-out faces</li><li>Overlapping geometry</li><li>Thin walls</li><li>Details too small for your nozzle</li><li>Overhangs and long bridges</li><li>Sharp points</li><li>Small holes that print too tight</li><li>Sealed hollow pockets</li><li>Parts too close together</li><li>Fit on your printer</li><li>Tall, narrow shapes</li><li>Weak bed contact</li><li>Time, weight and cost estimates</li>
+    </ul>
+  </section>
+  <footer class="foot">
+    <span>Your 3D files are checked in your browser and never uploaded. If you sign in, only your scores and settings are saved.</span>
+    <span><a href="https://github.com/laurenlliu/meshcheck/issues" target="_blank" rel="noopener">Send feedback or report a bug</a></span>
+    <span>Results are estimates. Always preview your model in your slicer before printing.</span>
+  </footer>
 </main>
 </div>
 
@@ -554,13 +587,13 @@
         <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
       </details>
       <div class="rowbtns">
-        <button class="btn small" id="autoFixBtn" type="button">Fix it for me</button>
-        <button class="btn small" id="orientBtn" type="button">Best orientation</button>
-        <button class="btn small alt" id="fixBtn" type="button">Download fixed STL</button>
-        <button class="btn small alt" id="reportBtn" type="button">Download report</button>
-        <button class="btn small alt" id="pdfBtn" type="button">Print / PDF</button>
-        <button class="btn small alt" id="copyBtn" type="button">Copy summary</button>
-        <button class="btn small alt" id="verBtn" type="button">Upload new version</button>
+        <button class="btn small" id="autoFixBtn" type="button" title="Closes holes, flips inside-out faces, removes duplicate faces and loose specks. You can undo it.">Fix it for me</button>
+        <button class="btn small" id="orientBtn" type="button" title="Tries six ways of laying the model down and keeps the one with the least overhang">Best orientation</button>
+        <button class="btn small alt" id="fixBtn" type="button" title="Download the repaired model as an STL file">Fixed STL</button>
+        <button class="btn small alt" id="reportBtn" type="button" title="Download the full report as a text file">Report (.txt)</button>
+        <button class="btn small alt" id="pdfBtn" type="button" title="Open a one-page report you can print or save as a PDF">Print / PDF</button>
+        <button class="btn small alt" id="copyBtn" type="button" title="Copy a short summary you can paste into a message">Copy summary</button>
+        <button class="btn small alt wide" id="verBtn" type="button" title="Swap in your updated file and see how the score changed">Upload new version</button>
         <input type="file" id="verFile" accept=".stl,.3mf" hidden>
         <input type="file" id="reFile" accept=".stl,.3mf" hidden>
       </div>
@@ -697,7 +730,7 @@
     <button class="addfile" id="wrongAdd" type="button" hidden>+ Add file</button>
     <button class="filex" id="wrongRemove" type="button" aria-label="Remove this file and choose another"><svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></button>
   </div>
-  <div class="msgbox">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
+  <div class="msgbox" id="wrongMsg">Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!</div>
 </dialog>
 
 <div class="progress-screen" id="progress" role="status" aria-live="polite">
@@ -896,17 +929,29 @@
   }
 
   /* ---------- reading STL / 3MF ---------- */
+  function cleanTris(arr) {   // drop triangles with missing or non-numeric corners
+    var n = Math.floor(arr.length / 9), out = new Float32Array(n * 9), k = 0, i, j, ok;
+    for (i = 0; i < n; i++) {
+      ok = true; for (j = 0; j < 9; j++) if (!isFinite(arr[i * 9 + j])) { ok = false; break; }
+      if (!ok) continue;
+      for (j = 0; j < 9; j++) out[k++] = arr[i * 9 + j];
+    }
+    return k === out.length ? out : out.slice(0, k);
+  }
   function parseSTL(buf) {
     var dv = new DataView(buf), n = buf.byteLength >= 84 ? dv.getUint32(80, true) : 0, i, k;
-    if (n > 0 && buf.byteLength === 84 + n * 50) {
+    if (n > 0 && buf.byteLength >= 84 + n * 50 && buf.byteLength - (84 + n * 50) < 1024) {
       var out = new Float32Array(n * 9);
       for (i = 0; i < n; i++) { var o = 84 + i * 50 + 12; for (k = 0; k < 9; k++) out[i * 9 + k] = dv.getFloat32(o + k * 4, true); }
+      out = cleanTris(out); if (out.length < 9) throw new Error('no triangles');
       return out;
     }
     var txt = new TextDecoder().decode(buf), re = /vertex\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)/g, a = [], m;
     while ((m = re.exec(txt))) a.push(+m[1], +m[2], +m[3]);
     if (a.length < 9) throw new Error('no triangles');
-    return new Float32Array(a.slice(0, Math.floor(a.length / 9) * 9));
+    var res = cleanTris(new Float32Array(a.slice(0, Math.floor(a.length / 9) * 9)));
+    if (res.length < 9) throw new Error('no triangles');
+    return res;
   }
   function inflateRaw(u8) {
     var ds = new DecompressionStream('deflate-raw'), w = ds.writable.getWriter();
@@ -1033,6 +1078,7 @@
       var vx = m[i * 3], vy = m[i * 3 + 1], vz = m[i * 3 + 2];
       if (vx < minx) minx = vx; if (vx > maxx) maxx = vx; if (vy < miny) miny = vy; if (vy > maxy) maxy = vy; if (vz > zmax) zmax = vz;
     }
+    var emptyModel = total < 1e-9 || !(zmax >= 0);
     var sx = (maxx - minx) || 1, sy = (maxy - miny) || 1, dimMax = Math.max(sx, sy, zmax) || 1;
 
     // welded vertices and edges (a closed model shares every edge between exactly two triangles)
@@ -1074,6 +1120,11 @@
       if (seen.has(key)) dup.push(t); else seen.add(key);
     }
 
+    if (total <= 1e-9 * dimMax * dimMax) {
+      add('empty', 'err', 1, 'Model has no surface', 'Model has no shape',
+        'Every face in this file has zero area, so there is nothing to print. The file may be empty, flattened to a point, or exported with the wrong scale.',
+        'Check your modeling program’s export settings (scale and units), make sure the model is visible and selected when you export, and try again.', null);
+    }
     // 1) holes and bad edges
     if (open) {
       add('holes', 'err', 1, 'Holes in the model', 'Holes in the surface',
@@ -1321,7 +1372,7 @@
       else if (closed && hasSolid && flipN > 0 && bb.vol < 0) { cavTris = cavTris.concat(bb.tris); cavVol += -bb.vol; }
       else bodies++;
     });
-    res.metrics.bodies = bodies;
+    res.metrics.bodies = bodies; res.specks = specks.length;
 
     var enough = function (list) { return list.length >= 3 && list.length >= tested * 0.015; };
     var smallParts = [], smallTris = [];
@@ -1375,7 +1426,8 @@
     var score = 100, errs = 0;
     res.issues.forEach(function (it) { if (it.kind === 'err') { errs++; score -= errs <= 2 ? 30 : 10; } else if (it.kind === 'warn') score -= 10; else score -= 3; });
     res.score = Math.max(0, Math.min(100, score)); res.errors = errs;
-    res.verdict = errs ? 'Not ready to print' : res.score >= 90 ? 'Ready to print' : 'Almost ready';
+    var warns = res.issues.some(function (it) { return it.kind === 'warn'; });
+    res.verdict = errs ? 'Not ready to print' : (res.score >= 90 && !warns) ? 'Ready to print' : 'Almost ready';
 
     // estimates
     var mat = o.density || 1.24, plastic;
@@ -1469,7 +1521,16 @@
     partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; setFile('');
     promptDlg.showModal();
   }
+  var WRONG_MSG = 'Whoops! It seems like we don’t support this type of file. Try STL or 3MF files instead!';
+  function showBad(name, why) {
+    $('wrongTitle').textContent = 'Whoops! We couldn’t read that file';
+    $('wrongMsg').textContent = why || 'The file looks empty, damaged or incomplete. Try exporting it again from your modeling program as a binary STL or a 3MF file.';
+    var n = $('wrongName'); n.textContent = name; n.hidden = false;
+    $('wrongAdd').hidden = true; $('wrongRemove').hidden = false;
+    if (!wrongDlg.open) wrongDlg.showModal();
+  }
   function showWrong(name) {
+    $('wrongTitle').textContent = 'Whoops! Wrong file!'; $('wrongMsg').textContent = WRONG_MSG;
     var n = $('wrongName');
     n.textContent = name; n.hidden = false;
     $('wrongAdd').hidden = true; $('wrongRemove').hidden = false;
@@ -1494,6 +1555,7 @@
       .then(function (r) {
         setTimeout(function () {
           progress.classList.remove('on');
+          if (r.bad) { showBad(f.name, f.size > 200 * 1024 * 1024 ? 'That file is very large (over 200 MB). Try exporting a simpler version with fewer triangles.' : null); return; }
           projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad, units: r.m.units || $('unitSel').value, when: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) });
           curP = projects.length - 1;
           setView('project');
@@ -1632,6 +1694,9 @@
     });
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
     $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
+    var fixable = res.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) || res.specks > 0;
+    $('autoFixBtn').disabled = !p.unfixed && !fixable;
+    $('autoFixBtn').title = p.unfixed ? 'Go back to the model from your file' : fixable ? 'Closes holes, flips inside-out faces, removes duplicate faces and loose specks. You can undo it.' : 'Nothing here can be repaired automatically. Other problems need a change in your modeling program.';
     $('fixBtn').disabled = !p.mesh;
   }
   function focusIssue(id) {
