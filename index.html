@@ -609,6 +609,7 @@
         <button class="popx" id="detailX" type="button" aria-label="Close"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2 2 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg></button>
         <h3 id="detailTitle"></h3>
         <p id="detailText"></p>
+        <p id="detailConf" style="font-size:.85em;opacity:.8;margin:6px 0"></p>
         <p class="fix" id="detailFixWrap"><b>How to fix:</b> <span id="detailFix"></span></p>
       </div>
       <div class="toast" id="toast" role="status" hidden></div>
@@ -1079,6 +1080,13 @@
     custom: { name: 'Custom size…', bed: null }
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
+  // how much to trust each finding: exact = measured directly on the mesh, good = reliable but depends on the slicer, est = a sampled or rule-of-thumb estimate
+  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est' };
+  var CONFTXT = {
+    exact: ['Exact check', 'I measured this directly on your model, so you can rely on it.'],
+    good: ['Reliable', 'I measured this on your model, but a slicer may judge borderline cases differently. Check it in your slicer preview.'],
+    est: ['Estimate', 'I find this by sampling points on your surface and using rules of thumb, so an occasional miss or false alarm is possible. Double-check it in your slicer preview.']
+  };
   var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
   var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20, infill: 20 };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
@@ -1127,7 +1135,7 @@
       return centroid(best);
     }
     function add(id, kind, color, title, short, text, fix, tris) {
-      res.issues.push({ id: id, kind: kind, color: color, title: title, short: short, text: text, fix: fix, tris: tris || [], count: tris ? tris.length : 0, anchor: tris && tris.length ? spot(tris) : null });
+      res.issues.push({ conf: CONF[id] || 'est', id: id, kind: kind, color: color, title: title, short: short, text: text, fix: fix, tris: tris || [], count: tris ? tris.length : 0, anchor: tris && tris.length ? spot(tris) : null });
     }
     function r1(x) { return Math.round(x * 10) / 10; }
     function r2(x) { return Math.round(x * 100) / 100; }
@@ -1875,7 +1883,7 @@
   function showDetail(it) {
     if (!it) return;
     detail.className = 'detail ' + (it.color === 1 ? 'warn' : 'sug');
-    $('detailTitle').textContent = it.title; $('detailText').textContent = it.text;
+    $('detailTitle').textContent = it.title; $('detailText').textContent = it.text; $('detailConf').textContent = (CONFTXT[it.conf] || CONFTXT.est)[0] + ': ' + (CONFTXT[it.conf] || CONFTXT.est)[1];
     $('detailFix').textContent = it.fix || ''; $('detailFixWrap').hidden = !it.fix;
     detail.hidden = false;
   }
@@ -1911,7 +1919,7 @@
       var li = document.createElement('li'), b = document.createElement('button');
       b.type = 'button'; b.className = 'issue' + (focusId === it.id ? ' on' : ''); b.setAttribute('aria-pressed', String(focusId === it.id));
       b.innerHTML = '<span class="sev ' + it.kind + '" aria-hidden="true">' + (it.kind === 'info' ? 'i' : '!') + '</span><span><b></b><small></small></span>';
-      b.querySelector('b').textContent = it.title; b.querySelector('small').textContent = it.kind === 'err' ? 'Must fix' : it.kind === 'warn' ? 'Should fix' : 'Worth a look';
+      b.querySelector('b').textContent = it.title; b.querySelector('small').textContent = (it.kind === 'err' ? 'Must fix' : it.kind === 'warn' ? 'Should fix' : 'Worth a look') + ' · ' + (CONFTXT[it.conf] || CONFTXT.est)[0].toLowerCase();
       b.addEventListener('click', function () { focusIssue(focusId === it.id ? null : it.id); });
       li.appendChild(b); ul.appendChild(li);
     });
@@ -2374,7 +2382,7 @@
     L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated ' + (r.resin ? 'resin' : 'plastic') + ': ' + r1(M.grams) + ' g', 'Supports: ' + (M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'needed, a little' : 'needed, about ' + r1(M.support.grams) + ' g extra') : 'not needed') : 'not checked'), 'Estimated print time: ' + fmtTime(M.minutes), 'Estimated material cost: $' + (Math.round(M.cost * 100) / 100).toFixed(2), '');
     if (p.info) L.push('About the part: ' + p.info, '');
     L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
-    r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How to fix: ' + it.fix); });
+    r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How sure I am: ' + (CONFTXT[it.conf] || CONFTXT.est)[0] + '. ' + (CONFTXT[it.conf] || CONFTXT.est)[1], '   How to fix: ' + it.fix); });
     if (r.tips.length) { L.push('', 'Tips for this part:'); r.tips.forEach(function (t) { L.push('- ' + t.title + ': ' + t.text); }); }
     L.push('', 'These checks are estimates. Always preview the model in your slicer before printing.');
     return L.join('\n');
@@ -2404,7 +2412,7 @@
     h += '<h2>Numbers</h2><table>' + [['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'], ['Volume', r1(M.volume / 1000) + ' cm³'], ['Parts', M.bodies || 1], ['Supports', M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'Needed, a little' : 'Needed, about ' + r1(M.support.grams) + ' g extra') : 'Not needed') : 'Not checked'], ['Printer', PRINTERS[settings.printer].name], ['Material', settings.material + ', ' + settings.nozzle + ' mm nozzle, ' + settings.layer + ' mm layers'], [r.resin ? 'Resin (est.)' : 'Plastic (est.)', r1(M.grams) + ' g'], ['Print time (est.)', fmtTime(M.minutes)], ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]].map(function (x) { return '<tr><td><b>' + x[0] + '</b></td><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>';
     if (p.info) h += '<h2>About the part</h2><div>' + esc(p.info) + '</div>';
     h += '<h2>' + (r.issues.length ? 'Things to look at' : 'No problems found') + '</h2>';
-    r.issues.forEach(function (it) { h += '<div class="pi"><b>' + esc(it.title) + '</b> (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')<br>' + esc(it.text) + '<br><i>How to fix: ' + esc(it.fix) + '</i></div>'; });
+    r.issues.forEach(function (it) { h += '<div class="pi"><b>' + esc(it.title) + '</b> (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')<br>' + esc(it.text) + '<br><i>How sure I am: ' + esc((CONFTXT[it.conf] || CONFTXT.est)[0]) + '. ' + esc((CONFTXT[it.conf] || CONFTXT.est)[1]) + '</i><br><i>How to fix: ' + esc(it.fix) + '</i></div>'; });
     if (r.tips.length) { h += '<h2>Tips for this part</h2>'; r.tips.forEach(function (t) { h += '<div class="pi"><b>' + esc(t.title) + '</b><br>' + esc(t.text) + '</div>'; }); }
     h += '<p><small>These checks are estimates. Always preview the model in your slicer before printing.</small></p>';
     pr.innerHTML = h; setTimeout(function () { window.print(); }, 50);
