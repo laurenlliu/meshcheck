@@ -582,6 +582,7 @@
         <label>Nozzle <select id="nozzleSel"><option value="0.2">0.2 mm</option><option value="0.4">0.4 mm</option><option value="0.6">0.6 mm</option><option value="0.8">0.8 mm</option></select></label>
         <label>Material <select id="materialSel"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>Resin</option></select></label>
         <label>Layer height <select id="layerSel"><option value="0.05">0.05 mm</option><option value="0.1">0.1 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.2 mm</option><option value="0.28">0.28 mm</option></select></label>
+        <label>Infill <span><select id="infillSel" aria-label="Infill percentage"><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="30">30%</option><option value="50">50%</option><option value="100">100% (solid)</option></select></span></label>
         <label>Filament price <span><input type="number" id="priceIn" min="1" max="500" step="1" aria-label="Price per kilogram in dollars"> $/kg</span></label>
         <label>Overhang limit <span><input type="range" id="angleRange" min="30" max="60" step="5" aria-label="Overhang limit in degrees"> <output id="angleOut">45°</output></span></label>
         <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
@@ -986,32 +987,76 @@
     var dv = new DataView(buf), u8 = new Uint8Array(buf), e = u8.length - 22, i;
     while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
     if (e < 0) throw new Error('not a zip');
-    var count = dv.getUint16(e + 10, true), off = dv.getUint32(e + 16, true), jobs = [];
+    var count = dv.getUint16(e + 10, true), off = dv.getUint32(e + 16, true), jobs = [], names = [];
+    if ((count === 0xFFFF || off === 0xFFFFFFFF) && e >= 20 && dv.getUint32(e - 20, true) === 0x07064b50) {   // big (zip64) archive
+      var z = dv.getUint32(e - 12, true);
+      if (z + 56 <= u8.length && dv.getUint32(z, true) === 0x06064b50) { count = dv.getUint32(z + 32, true); off = dv.getUint32(z + 48, true); }
+    }
     for (i = 0; i < count; i++) {
-      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true);
+      if (off + 46 > u8.length || dv.getUint32(off, true) !== 0x02014b50) break;
+      var method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true), usize = dv.getUint32(off + 24, true);
       var nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
       var name = new TextDecoder().decode(u8.subarray(off + 46, off + 46 + nl));
+      if (csize === 0xFFFFFFFF || usize === 0xFFFFFFFF || lho === 0xFFFFFFFF) {
+        var xp = off + 46 + nl, xe = xp + el;
+        while (xp + 4 <= xe) {
+          var xid = dv.getUint16(xp, true), xsz = dv.getUint16(xp + 2, true);
+          if (xid === 1) { var q = xp + 4; if (usize === 0xFFFFFFFF) { usize = dv.getUint32(q, true); q += 8; } if (csize === 0xFFFFFFFF) { csize = dv.getUint32(q, true); q += 8; } if (lho === 0xFFFFFFFF) lho = dv.getUint32(q, true); break; }
+          xp += 4 + xsz;
+        }
+      }
       if (/\.model$/i.test(name)) {
         var start = lho + 30 + dv.getUint16(lho + 26, true) + dv.getUint16(lho + 28, true), data = u8.subarray(start, start + csize);
-        jobs.push(method === 8 ? inflateRaw(data) : Promise.resolve(data.slice().buffer));
+        names.push('/' + name.replace(/^\/+/, '')); jobs.push(method === 8 ? inflateRaw(data) : Promise.resolve(data.slice().buffer));
       }
       off += 46 + nl + el + cl;
     }
+    function attr(el, local) { var as = el.attributes; for (var j = 0; j < as.length; j++) if (as[j].localName === local) return as[j].value; return null; }
+    function tf(str) { var v = (str || '').trim().split(/\s+/).map(Number); return v.length === 12 && v.every(isFinite) ? v : [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0]; }
+    function mul(A, B) {   // apply A, then B (3MF matrices act on row vectors)
+      var R = [], r, c;
+      for (r = 0; r < 3; r++) for (c = 0; c < 3; c++) R.push(A[r * 3] * B[c] + A[r * 3 + 1] * B[3 + c] + A[r * 3 + 2] * B[6 + c]);
+      for (c = 0; c < 3; c++) R.push(A[9] * B[c] + A[10] * B[3 + c] + A[11] * B[6 + c] + B[9 + c]);
+      return R;
+    }
     return Promise.all(jobs).then(function (parts) {
-      var out = [], unitName = '';
-      parts.forEach(function (ab) {
-        var doc = new DOMParser().parseFromString(new TextDecoder().decode(ab), 'application/xml');
-        if (!unitName) unitName = (doc.documentElement.getAttribute('unit') || '').toLowerCase();
-        var meshes = doc.getElementsByTagName('mesh');
-        for (var mi = 0; mi < meshes.length; mi++) {
-          var vs = meshes[mi].getElementsByTagName('vertex'), ts = meshes[mi].getElementsByTagName('triangle'), P = [], j;
-          for (j = 0; j < vs.length; j++) P.push([+vs[j].getAttribute('x'), +vs[j].getAttribute('y'), +vs[j].getAttribute('z')]);
+      var objs = {}, builds = [], unitName = '', mainPath = null, out = [], total = 0;
+      parts.forEach(function (ab, pi) {
+        var doc = new DOMParser().parseFromString(new TextDecoder().decode(ab), 'application/xml'), root = doc.documentElement, path = names[pi];
+        var os = root.getElementsByTagName('object'), j;
+        for (j = 0; j < os.length; j++) {
+          var ob = os[j], id = ob.getAttribute('id'), ty = ob.getAttribute('type') || 'model', mesh = null, comps = [];
+          for (var ch = ob.firstElementChild; ch; ch = ch.nextElementSibling) {
+            if (ch.localName === 'mesh') mesh = ch;
+            else if (ch.localName === 'components') for (var cc = ch.firstElementChild; cc; cc = cc.nextElementSibling) comps.push({ id: cc.getAttribute('objectid'), path: attr(cc, 'path'), tf: tf(cc.getAttribute('transform')) });
+          }
+          objs[path + '#' + id] = { mesh: mesh, comps: comps, type: ty, path: path };
+        }
+        var its = root.getElementsByTagName('item');
+        if (its.length) {
+          if (!mainPath) { mainPath = path; unitName = (root.getAttribute('unit') || '').toLowerCase(); }
+          for (j = 0; j < its.length; j++) if (its[j].getAttribute('printable') !== '0') builds.push({ id: its[j].getAttribute('objectid'), path: path, tf: tf(its[j].getAttribute('transform')) });
+        }
+        if (!unitName) unitName = (root.getAttribute('unit') || '').toLowerCase();
+      });
+      function emit(path, id, M, depth) {
+        var ob = objs[path + '#' + id]; if (!ob || depth > 8 || ob.type === 'support' || ob.type === 'solidsupport') return;
+        if (ob.mesh) {
+          var vs = ob.mesh.getElementsByTagName('vertex'), ts = ob.mesh.getElementsByTagName('triangle'), P = new Float64Array(vs.length * 3), j;
+          for (j = 0; j < vs.length; j++) {
+            var x = +vs[j].getAttribute('x'), y = +vs[j].getAttribute('y'), z = +vs[j].getAttribute('z');
+            P[j * 3] = x * M[0] + y * M[3] + z * M[6] + M[9]; P[j * 3 + 1] = x * M[1] + y * M[4] + z * M[7] + M[10]; P[j * 3 + 2] = x * M[2] + y * M[5] + z * M[8] + M[11];
+          }
           for (j = 0; j < ts.length; j++) {
-            var tri = [+ts[j].getAttribute('v1'), +ts[j].getAttribute('v2'), +ts[j].getAttribute('v3')];
-            for (var k = 0; k < 3; k++) { var pt = P[tri[k]]; if (!pt) break; out.push(pt[0], pt[1], pt[2]); }
+            var a = +ts[j].getAttribute('v1'), b = +ts[j].getAttribute('v2'), c = +ts[j].getAttribute('v3');
+            if (!(a >= 0 && a < vs.length && b >= 0 && b < vs.length && c >= 0 && c < vs.length)) continue;
+            out.push(P[a * 3], P[a * 3 + 1], P[a * 3 + 2], P[b * 3], P[b * 3 + 1], P[b * 3 + 2], P[c * 3], P[c * 3 + 1], P[c * 3 + 2]); total++;
           }
         }
-      });
+        ob.comps.forEach(function (c) { emit(c.path ? '/' + c.path.replace(/^\/+/, '') : ob.path, c.id, mul(c.tf, M), depth + 1); });
+      }
+      if (builds.length) builds.forEach(function (bi) { emit(bi.path, bi.id, bi.tf, 0); });
+      else Object.keys(objs).forEach(function (k) { if (objs[k].mesh) emit(objs[k].path, k.split('#')[1], [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 0); });
       if (out.length < 9) throw new Error('no triangles');
       var arr = new Float32Array(out);
       arr.units = ({ millimeter: 'mm', centimeter: 'cm', meter: 'm', inch: 'in', foot: 'ft' })[unitName] || null;
@@ -1035,7 +1080,7 @@
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
   var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
-  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20 };
+  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20, infill: 20 };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
   function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} if (window.mcSettingsChanged) window.mcSettingsChanged(); }
 
@@ -1201,6 +1246,13 @@
       bb.tris.push(t); bb.vol += tv[t] * flipN;
       for (k = 0; k < 9; k++) { var cv = m[t * 9 + k], axx = k % 3; if (cv < bb.lo[axx]) bb.lo[axx] = cv; if (cv > bb.hi[axx]) bb.hi[axx] = cv; }
     }
+    // layer-by-layer slice: real support need, material and time (needs a surface without open edges)
+    var sr = null;
+    if (!open && !emptyModel && vol !== 0) {
+      try { sr = slicePrint(m, n, { perMm: mmU, layer: resin ? 0.05 : (o.layer || 0.2), nozzle: noz, overhang: o.overhang || 45, resin: resin, infill: o.infill }); } catch (e) { sr = null; }
+      if (sr && !(Math.abs(sr.volumeMm3 - volMm) <= volMm * 0.3)) sr = null;   // the cuts disagree with the volume, so don't trust them
+    }
+    var sliceSays = sr ? (sr.overhangMm2 >= 6 || sr.supportMm3 >= 20) : null;
     // 2) overhangs and long flat bridges
     var angle = o.overhang || 45, limit = -Math.sin(angle * Math.PI / 180), cand = [], gcell = 48, grid = [];
     for (t = 0; t < n; t++) if (nz[t] < limit && area[t] > 0 && !(closed && flipN > 0 && box.get(comp[t]).vol < 0)) cand.push(t);
@@ -1232,7 +1284,7 @@
       if (over.length && overArea > total * 0.005) {
         var pct = Math.max(1, Math.round(overArea / total * 100));
         res.overhangPct = pct;
-        add('overhang', pct >= 15 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
+        if (!sr || sliceSays) add('overhang', pct >= 15 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
           'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
           'Turn the model so the flat side faces down (try the Best orientation button), add supports in your slicer, or redesign the overhang as a 45° slope or a chamfer.', over);
         // bridges: flat undersides joined together; how wide a flat span hangs in the air?
@@ -1361,7 +1413,9 @@
     }
     var step = Math.max(1, Math.floor(n / 6000)), tested = 0, thin = [], tiny = [], gaps = [], pT = [], pY = [], pG = [], thinMin = 1e30, tinyMin = 1e30, gapMin = 1e30;
     var closeA = [], closeB = [], closeMin = 1e30, holesA = [], holesB = [], holeLo = 1e30, holeHi = 0, thick = new Float32Array(n).fill(99), under2 = [], p2 = [];
-    for (t = 0; t < n; t += step) {
+    for (var kq = 0, KQ = Math.ceil(n / step), tT0 = Date.now(); kq < KQ; kq++) {   // sample spread evenly over the model; stop early on dense models so the page stays quick
+      if ((kq & 31) === 31 && Date.now() - tT0 > 3500) break;
+      t = step === 1 ? kq : Math.min(n - 1, Math.floor(((kq * 0.6180339887498949) % 1) * n));
       if (area[t] <= degenEps) continue;
       oo = t * 9;
       var e1x = m[oo + 3] - m[oo], e1y = m[oo + 4] - m[oo + 1], e1z = m[oo + 5] - m[oo + 2], e2x = m[oo + 6] - m[oo], e2y = m[oo + 7] - m[oo + 1], e2z = m[oo + 8] - m[oo + 2];
@@ -1456,7 +1510,7 @@
     res.issues.forEach(function (it) { if (!res.w && it.color === 1) res.w = it; if (!res.s && it.color === 2) res.s = it; });
     var score = 100, errs = 0;
     res.issues.forEach(function (it) { if (it.kind === 'err') { errs++; score -= errs <= 2 ? 30 : 10; } else if (it.kind === 'warn') score -= 10; else score -= 3; });
-    res.score = Math.max(0, Math.min(100, score)); res.errors = errs;
+    res.score = Math.max(0, Math.min(100, score)); res.errors = errs; res.closed = closed; res.sliceable = !open;
     var warns = res.issues.some(function (it) { return it.kind === 'warn'; });
     res.verdict = errs ? 'Not ready to print' : (res.score >= 90 && !warns) ? 'Ready to print' : 'Almost ready';
 
@@ -1468,13 +1522,170 @@
       res.metrics.minutes = (Z / 0.05) * 9 / 60 + 6;                         // roughly 9 s a layer plus warm-up
     } else {
       var shell = Math.min(volMm, areaMm * 0.9);
-      plastic = shell + Math.max(0, volMm - shell) * 0.2;                     // 2 perimeters, 4 top and bottom layers, 20% infill
+      plastic = shell + Math.max(0, volMm - shell) * (o.infill == null ? 0.2 : o.infill);                     // 2 perimeters, 4 top and bottom layers, 20% infill
       res.metrics.grams = plastic / 1000 * mat;
       var flow = 5 * (noz / 0.4) * (noz / 0.4) * ((o.layer || 0.2) / 0.2);
       res.metrics.minutes = plastic / flow * 1.15 / 60;
     }
+    if (sr) {
+      var suppG = sr.supportMm3 / 1000 * mat;
+      if (!resin) { res.metrics.grams = (sr.wallMm3 + sr.skinMm3 + sr.infillMm3 + sr.supportMm3) / 1000 * mat; res.metrics.minutes = sr.minutes; }
+      else res.metrics.grams += suppG;
+      res.metrics.support = { needed: !!sliceSays, grams: suppG, layers: sr.supportLayers, layerCount: sr.layers, share: sr.supportShare };
+      res.sliced = true;
+    }
     res.metrics.cost = res.metrics.grams / 1000 * (o.price || 20);
     return res;
+  }
+
+  /* ---------- layer slicer: real cross-sections, support volume, material and time ---------- */
+  // m = model in viewer units (z up from 0), n = triangles, o = { perMm, layer (mm), nozzle (mm), overhang (deg), resin, density (g/cm3), infill (0 to 1) }
+  function slicePrint(m, n, o) {
+    var perMm = o.perMm || 1, lhMm = o.layer || 0.2, nozMm = o.nozzle || 0.4, resin = !!o.resin, infillFrac = o.infill == null ? 0.2 : o.infill, i, t, k;
+    var zmax = 0, minx = 1e30, maxx = -1e30, miny = 1e30, maxy = -1e30;
+    for (i = 0; i < n * 3; i++) {
+      var x = m[i * 3], y = m[i * 3 + 1], z = m[i * 3 + 2];
+      if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; if (z > zmax) zmax = z;
+    }
+    var Hmm = zmax / perMm; if (!(Hmm > 0) || !(maxx > minx) || !(maxy > miny)) return null;
+    var lhEff = Math.max(lhMm, Hmm / 360), L = Math.max(1, Math.round(Hmm / lhEff)), lh = zmax / L, lhM = lh / perMm;   // lh in viewer units, lhM in mm
+    var spanXY = Math.max(maxx - minx, maxy - miny), cs = spanXY / 220, csMm = cs / perMm;
+    var gx = Math.ceil((maxx - minx) / cs) + 3, gy = Math.ceil((maxy - miny) / cs) + 3, GP = gx * gy;
+    var skinN = Math.max(1, Math.round(0.8 / lhM)), wallLines = resin ? 0 : 2;
+    // which triangles cross which layers (counting sort)
+    var zl = new Int32Array(n), zh = new Int32Array(n), cnt = new Int32Array(L + 1);
+    for (t = 0; t < n; t++) {
+      var o9 = t * 9, a = m[o9 + 2], b = m[o9 + 5], c = m[o9 + 8], lo = Math.min(a, b, c), hi = Math.max(a, b, c);
+      var k0 = Math.max(0, Math.ceil(lo / lh - 0.5)), k1 = Math.min(L - 1, Math.floor(hi / lh - 0.5));
+      zl[t] = k0; zh[t] = k1; if (k1 >= k0) for (k = k0; k <= k1; k++) cnt[k + 1]++;
+    }
+    for (k = 0; k < L; k++) cnt[k + 1] += cnt[k];
+    var list = new Int32Array(cnt[L]), fill = cnt.slice(0, L);
+    for (t = 0; t < n; t++) for (k = zl[t]; k <= zh[t]; k++) list[fill[k]++] = t;
+    var cache = {};
+    function sliceLayer(kk) {
+      if (kk < 0 || kk >= L) return null;
+      if (cache[kk]) return cache[kk];
+      var zp = (kk + 0.5) * lh, rows = new Array(gy), j, tt, p, perim = 0, net = 0;
+      for (j = 0; j < gy; j++) rows[j] = null;
+      for (p = cnt[kk]; p < cnt[kk + 1]; p++) {
+        tt = list[p]; var q = tt * 9, px = [], py = [], e;
+        for (e = 0; e < 3; e++) {
+          var e2 = (e + 1) % 3, z1 = m[q + e * 3 + 2], z2 = m[q + e2 * 3 + 2];
+          if ((z1 > zp) !== (z2 > zp)) {
+            var f = (zp - z1) / (z2 - z1);
+            px.push(m[q + e * 3] + f * (m[q + e2 * 3] - m[q + e * 3])); py.push(m[q + e * 3 + 1] + f * (m[q + e2 * 3 + 1] - m[q + e * 3 + 1]));
+          }
+        }
+        if (px.length !== 2) continue;
+        // orient the cut so the inside is on its left: direction t = (-ny, nx) of the face normal
+        var ux = m[q + 3] - m[q], uy = m[q + 4] - m[q + 1], uz = m[q + 5] - m[q + 2], vx = m[q + 6] - m[q], vy = m[q + 7] - m[q + 1], vz = m[q + 8] - m[q + 2];
+        var nxv = uy * vz - uz * vy, nyv = uz * vx - ux * vz;
+        var ax = (px[0] - minx) / cs + 1, ay = (py[0] - miny) / cs + 1, bx = (px[1] - minx) / cs + 1, by = (py[1] - miny) / cs + 1;
+        var sdx = bx - ax, sdy = by - ay, dirOk = (sdx * -nyv + sdy * nxv) >= 0;
+        if (!dirOk) { var tx = ax; ax = bx; bx = tx; var ty = ay; ay = by; by = ty; }
+        perim += Math.hypot(bx - ax, by - ay);
+        net += (ax * by - bx * ay) / 2;
+        if (ay === by) continue;
+        var up = by > ay ? 1 : -1, ylo = Math.min(ay, by), yhi = Math.max(ay, by), j0 = Math.max(0, Math.ceil(ylo - 0.5)), j1 = Math.min(gy - 1, Math.ceil(yhi - 0.5) - 1);
+        for (j = j0; j <= j1; j++) {
+          var xx = ax + (j + 0.5 - ay) * (bx - ax) / (by - ay);
+          (rows[j] || (rows[j] = [])).push([xx, up]);
+        }
+      }
+      var img = new Uint8Array(GP), cells = 0;
+      for (j = 0; j < gy; j++) {
+        var r = rows[j]; if (!r || r.length < 2) continue;
+        r.sort(function (u, v) { return u[0] - v[0]; });
+        var wnd = 0;
+        for (var s = 0; s + 1 < r.length; s++) {
+          wnd += r[s][1];
+          if (wnd === 0) continue;
+          var i0 = Math.max(0, Math.ceil(r[s][0] - 0.5)), i1 = Math.min(gx - 1, Math.ceil(r[s + 1][0] - 0.5) - 1);
+          for (var ii = i0; ii <= i1; ii++) { if (!img[j * gx + ii]) cells++; img[j * gx + ii] = 1; }
+        }
+      }
+      var res = { img: img, cells: cells, perim: perim * csMm, areaMm2: Math.abs(net) * csMm * csMm };
+      cache[kk] = res;
+      return res;
+    }
+    // reach: how far a layer may stick out past the one below before it hangs in the air
+    var reachCells = (lhM * Math.tan(Math.min(80, o.overhang || 45) * Math.PI / 180)) / csMm + 0.75, R = Math.max(1, Math.ceil(reachCells)), offs = [];
+    for (var dy = -R; dy <= R; dy++) for (var dx = -R; dx <= R; dx++) if (dx * dx + dy * dy <= reachCells * reachCells + 0.001 && (dx || dy)) offs.push(dy * gx + dx, dx, dy);
+    var bridgeCells = Math.max(2, Math.round(10 / csMm));   // spans up to about 10 mm print as a bridge without supports
+    var cellMm2 = csMm * csMm;
+    var tWall = 0, tSkin = 0, tInfill = 0, tSupp = 0, timeS = 0, wallMm3 = 0, skinMm3 = 0, infillMm3 = 0, suppCells = 0, ohCellsTotal = 0, bridgeCellsTotal = 0, suppLayers = 0, firstSupp = -1;
+    var suppNext = new Uint8Array(GP), ohNext = new Uint8Array(GP), suppCur, ohCur, ci, volMm3 = 0, mid = 0.5 * nozMm;
+    var rateW = 28 * (nozMm * 1.05) * lhM, rateS = 38 * (nozMm * 1.05) * lhM, rateI = Math.min(55 * (nozMm * 1.05) * lhM, 6 * Math.pow(nozMm / 0.4, 2)), rateP = 40 * (nozMm * 1.05) * lhM;
+    var ring = {};
+    for (k = L - 1; k >= 0; k--) {
+      var cur = sliceLayer(k), below = sliceLayer(k - 1);
+      for (var w = 1; w <= skinN; w++) { sliceLayer(k + w); sliceLayer(k - w); }
+      delete cache[k + skinN + 2];
+      var layerS = 0;
+      if (cur && cur.cells) {
+        var areaMm2 = cur.areaMm2, perimMm = cur.perim, band = Math.min(areaMm2, perimMm * nozMm * wallLines), skin = 0;
+        volMm3 += areaMm2 * lhM;
+        for (ci = 0; ci < GP; ci++) {
+          if (!cur.img[ci]) continue;
+          var open = false;
+          for (var w2 = 1; w2 <= skinN; w2++) {
+            var up2 = cache[k + w2], dn2 = cache[k - w2];
+            if (k + w2 >= L || !up2 || !up2.img[ci] || k - w2 < 0 || !dn2 || !dn2.img[ci]) { open = true; break; }
+          }
+          if (open) skin++;
+        }
+        var skinMm2 = Math.min(areaMm2 - band, areaMm2 * skin / cur.cells), inner = Math.max(0, areaMm2 - band - skinMm2);
+        wallMm3 += band * lhM; skinMm3 += skinMm2 * lhM; infillMm3 += inner * lhM * infillFrac;
+        if (!resin) layerS += band * lhM / rateW * (k === 0 ? 2 : 1) + skinMm2 * lhM / rateS + inner * lhM * infillFrac / rateI;
+      }
+      // overhangs: filled here, nothing within reach underneath
+      suppCur = new Uint8Array(GP); ohCur = new Uint8Array(GP);
+      var any = false;
+      if (cur && cur.cells && k > 0) {
+        for (ci = 0; ci < GP; ci++) {
+          if (!cur.img[ci] || (below && below.img[ci])) continue;
+          var ok = false, cx0 = ci % gx, cy0 = (ci / gx) | 0;
+          if (below) for (var oi = 0; oi < offs.length; oi += 3) {
+            var xx2 = cx0 + offs[oi + 1], yy2 = cy0 + offs[oi + 2];
+            if (xx2 < 0 || yy2 < 0 || xx2 >= gx || yy2 >= gy) continue;
+            if (below.img[ci + offs[oi]]) { ok = true; break; }
+          }
+          if (ok) continue;
+          // a short flat span between two supported edges is bridged, not propped up
+          var br = false;
+          if (below) {
+            var l1 = 0, r1_ = 0, u1 = 0, d1 = 0, st;
+            for (st = 1; st <= bridgeCells; st++) { var xl = cx0 - st; if (xl >= 0 && cur.img[ci - st] && below.img[ci - st]) { l1 = st; break; } }
+            for (st = 1; st <= bridgeCells; st++) { var xr = cx0 + st; if (xr < gx && cur.img[ci + st] && below.img[ci + st]) { r1_ = st; break; } }
+            if (l1 && r1_) br = true;
+            else {
+              for (st = 1; st <= bridgeCells; st++) { var yu = cy0 - st; if (yu >= 0 && cur.img[ci - st * gx] && below.img[ci - st * gx]) { u1 = st; break; } }
+              for (st = 1; st <= bridgeCells; st++) { var yd = cy0 + st; if (yd < gy && cur.img[ci + st * gx] && below.img[ci + st * gx]) { d1 = st; break; } }
+              if (u1 && d1) br = true;
+            }
+          }
+          if (br) { bridgeCellsTotal++; continue; }
+          ohCur[ci] = 1; ohCellsTotal++;
+        }
+      }
+      var curImg = cur ? cur.img : null, sc = 0;
+      for (ci = 0; ci < GP; ci++) {
+        if (!(ohNext[ci] || suppNext[ci])) continue;
+        if (curImg && curImg[ci]) continue;
+        suppCur[ci] = 1; sc++;
+      }
+      if (sc) { suppCells += sc; suppLayers++; if (firstSupp < 0) firstSupp = k; if (!resin) layerS += (sc * cellMm2 * lhM * 0.15) / rateP; }
+      suppNext = suppCur; ohNext = ohCur;
+      if (!resin) { layerS = layerS * 1.15 + 1.5; if (layerS < 8) layerS = 8; timeS += layerS; }
+    }
+    var interfaceMm3 = ohCellsTotal * cellMm2 * lhM * 2 * 0.9;
+    var suppMm3 = suppCells * cellMm2 * lhM * (resin ? 0.06 : 0.15) + (resin ? 0 : interfaceMm3);
+    var shareOver = volMm3 > 0 ? (suppCells * cellMm2 * lhM) / volMm3 : 0;
+    return {
+      layers: L, volumeMm3: volMm3, wallMm3: wallMm3, skinMm3: skinMm3, infillMm3: infillMm3, supportMm3: suppMm3, supportLayers: suppLayers, overhangMm2: ohCellsTotal * cellMm2, bridgeMm2: bridgeCellsTotal * cellMm2,
+      needsSupport: ohCellsTotal * cellMm2 >= 6 || suppMm3 >= 20, supportShare: shareOver, minutes: timeS * 1.1 / 60 + (suppMm3 / (rateP || 1)) / 60 * 0
+    };
   }
 
   // which triangles to paint: red for warnings and errors, yellow for suggestions. focus = one issue id, or null for all.
@@ -1655,7 +1866,7 @@
 
   function cur() { var p = projects[curP]; return p && p.mesh ? p : null; }
   function optsFor(p) {
-    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, purpose: p.info || '' };
+    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, purpose: p.info || '' };
   }
   function toast(msg) {
     var t = $('toast'); t.textContent = msg; t.hidden = false;
@@ -1711,7 +1922,8 @@
       ['Triangles', M.tris.toLocaleString()],
       ['Parts', String(M.bodies || 1)],
       ['Fits printer', M.fits === 'yes' ? 'Yes' : M.fits === 'turn' ? 'If turned 90°' : 'No'],
-      ['Plastic (est.)', r1(M.grams) + ' g ' + settings.material],
+      ['Supports', M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'Needed (a little)' : 'Needed (+' + r1(M.support.grams) + ' g)') : 'Not needed') : (res.sliceable ? 'Not checked' : 'Fix holes first')],
+      [res.resin ? 'Resin (est.)' : 'Plastic (est.)', r1(M.grams) + ' g ' + settings.material],
       ['Print time (est.)', fmtTime(M.minutes)],
       ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]
     ];
@@ -1739,7 +1951,7 @@
     $('printerSel').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
     $('bedX').value = settings.bed[0]; $('bedY').value = settings.bed[1]; $('bedZ').value = settings.bed[2];
     $('nozzleSel').value = String(settings.nozzle); $('materialSel').value = settings.material; $('layerSel').value = String(settings.layer);
-    $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
+    $('infillSel').value = String(settings.infill || 20); $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
     var p = cur(); if (p) $('unitSel2').value = p.units || 'mm';
   }
   function refreshProject() {
@@ -1765,10 +1977,13 @@
       p.res = analyze(p.norm, viewer.n, optsFor(p));
       applyResult(p); renderReport(p); setBubble(); cloudSave(p);
       if (p.verPrev != null) { var d = p.res.score - p.verPrev; toast('New version checked: score ' + p.verPrev + ' to ' + p.res.score + (d > 0 ? ' (+' + d + ', better)' : d < 0 ? ' (' + d + ', worse)' : ' (no change)') + '.'); p.verPrev = null; }
+      if (p.orientNote && p.orig && p.res.score < p.orientNote.score) { p.mesh = p.orig; p.orig = null; p.orientNote = null; p.res = null; refreshProject(); toast('I tried turning the model, but the new position scored lower, so I left it the way your file had it.'); return; }
+      if (p.fixNote && p.unfixed && p.res.score < p.fixNote.before) { var bf = p.fixNote.before, nw = p.res.score; p.mesh = p.unfixed; p.unfixed = null; p.fixNote = null; p.res = null; refreshProject(); toast('I tried repairing this, but the score dropped from ' + bf + ' to ' + nw + ', so I put your original back. This one needs fixing in your modeling program.'); return; }
       if (p.orientNote) { var on = p.orientNote; p.orientNote = null; toast('I turned the model onto a better face (tried ' + on.tried + ' angles). Overhang dropped from about ' + Math.round(on.from * 100) + '% to ' + Math.round(on.to * 100) + '% of the surface. Press the button again to undo.'); }
       if (p.fixNote) { var fn = p.fixNote; p.fixNote = null; toast('I ' + fn.bits.join(', ') + '. Score ' + fn.before + ' to ' + p.res.score + '.' + (fn.left ? ' Overlapping geometry is still there and needs fixing in your modeling program.' : '') + ' Press the button again to undo.'); }
     }, 40);
   }
+
   function recheck() { projects.forEach(function (p) { p.res = null; }); refreshProject(); }
 
   $('detailX').addEventListener('click', function () { detail.hidden = true; if (focusId) focusIssue(null); });
@@ -1855,6 +2070,7 @@
   });
   $('nozzleSel').addEventListener('change', function () { settings.nozzle = +this.value; saveSettings(); recheck(); });
   $('materialSel').addEventListener('change', function () { settings.material = this.value; settings.price = PRICES[this.value] || 20; saveSettings(); syncSettings(); recheck(); });
+  $('infillSel').addEventListener('change', function () { settings.infill = +this.value || 20; saveSettings(); syncSettings(); recheck(); });
   $('priceIn').addEventListener('change', function () { settings.price = Math.max(1, Math.min(500, +this.value || 20)); saveSettings(); syncSettings(); recheck(); });
   $('layerSel').addEventListener('change', function () { settings.layer = +this.value; saveSettings(); recheck(); });
   $('angleRange').addEventListener('input', function () { $('angleOut').textContent = this.value + '°'; });
@@ -1950,7 +2166,7 @@
       });
       btn.disabled = false;
       if (!best || !base || bs > base.val - 0.01) { toast('Your model is already lying in about the best way I could find (I tried ' + cands.length + ' angles).'); return; }
-      p.orig = p.mesh; p.mesh = best.m; p.res = null; p.orientNote = { from: base.over, to: best.over, tried: cands.length }; refreshProject();
+      var sc0 = p.res.score; p.orig = p.mesh; p.mesh = best.m; p.res = null; p.orientNote = { from: base.over, to: best.over, tried: cands.length, score: sc0 }; refreshProject();
     }, 30);
   });
 
@@ -2030,22 +2246,74 @@
       for (var o = 0; o < ncomp; o++) if (o !== i && cvol[o] > 0 && cbox[o].lo[0] <= cbox[i].lo[0] && cbox[o].lo[1] <= cbox[i].lo[1] && cbox[o].lo[2] <= cbox[i].lo[2] && cbox[o].hi[0] >= cbox[i].hi[0] && cbox[o].hi[1] >= cbox[i].hi[1] && cbox[o].hi[2] >= cbox[i].hi[2]) inside = true;
       if (!inside || totalVol < 0) { cbox[i].tris.forEach(function (ti) { var T = tris[ti]; tris[ti] = [T[0], T[2], T[1]]; }); stats.flipped += cbox[i].tris.length; }
     }
-    // fill holes: every open edge a->b gets a triangle b->a joined to the middle of its hole
+    // fill holes: walk each open rim into loops, then cut every loop into triangles (ear clipping, so concave and curved holes stay flat to the rim)
     var dirE = new Map(), bnd = [];
     tris.forEach(function (T) { for (var e = 0; e < 3; e++) dirE.set(T[e] * 67108864 + T[(e + 1) % 3], (dirE.get(T[e] * 67108864 + T[(e + 1) % 3]) || 0) + 1); });
     tris.forEach(function (T) {
-      for (var e = 0; e < 3; e++) { var x = T[e], y = T[(e + 1) % 3]; if (!dirE.get(y * 67108864 + x)) bnd.push([x, y]); }
+      for (var e = 0; e < 3; e++) { var x = T[e], y = T[(e + 1) % 3]; if (!dirE.get(y * 67108864 + x) && dirE.get(x * 67108864 + y) === 1) bnd.push([x, y]); }
     });
-    if (bnd.length && bnd.length < 200000) {
-      var bp = new Map(); function bf(x) { while (bp.get(x) !== x) { bp.set(x, bp.get(bp.get(x))); x = bp.get(x); } return x; }
-      bnd.forEach(function (E) { if (!bp.has(E[0])) bp.set(E[0], E[0]); if (!bp.has(E[1])) bp.set(E[1], E[1]); });
-      bnd.forEach(function (E) { bp.set(bf(E[1]), bf(E[0])); });
-      var loops = new Map();
-      bnd.forEach(function (E) { var r = bf(E[0]), L = loops.get(r); if (!L) { L = { edges: [], vs: new Set() }; loops.set(r, L); } L.edges.push(E); L.vs.add(E[0]); L.vs.add(E[1]); });
-      loops.forEach(function (L) {
-        var mx = 0, my = 0, mz = 0; L.vs.forEach(function (vi) { mx += pos[vi * 3]; my += pos[vi * 3 + 1]; mz += pos[vi * 3 + 2]; });
-        var cnt = L.vs.size, ci = pos.length / 3;
-        pos.push(mx / cnt, my / cnt, mz / cnt); L.edges.forEach(function (E) { tris.push([E[1], E[0], ci]); });
+    function earClip(poly) {
+      var m = poly.length, nx = 0, ny = 0, nz = 0, j;
+      for (j = 0; j < m; j++) {
+        var A = poly[j] * 3, B = poly[(j + 1) % m] * 3;
+        nx += (pos[A + 1] - pos[B + 1]) * (pos[A + 2] + pos[B + 2]); ny += (pos[A + 2] - pos[B + 2]) * (pos[A] + pos[B]); nz += (pos[A] - pos[B]) * (pos[A + 1] + pos[B + 1]);
+      }
+      var ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz), ia, ib, sg;
+      if (ax >= ay && ax >= az) { ia = 1; ib = 2; sg = nx < 0 ? -1 : 1; } else if (ay >= az) { ia = 2; ib = 0; sg = ny < 0 ? -1 : 1; } else { ia = 0; ib = 1; sg = nz < 0 ? -1 : 1; }
+      if (!(ax + ay + az > 0)) return null;
+      var U = new Float64Array(m), V = new Float64Array(m);
+      for (j = 0; j < m; j++) { U[j] = pos[poly[j] * 3 + ia]; V[j] = pos[poly[j] * 3 + ib] * sg; }
+      var left = [], out2 = [], eps = 1e-14 * diag * diag;
+      for (j = 0; j < m; j++) left.push(j);
+      function cr(i0, i1, i2) { return (U[i1] - U[i0]) * (V[i2] - V[i1]) - (V[i1] - V[i0]) * (U[i2] - U[i1]); }
+      var start = 0, guard = 0;
+      while (left.length > 3 && guard++ < m * m + 10) {
+        var L = left.length, found = -1, pass, cnt;
+        for (pass = 0; pass < 3 && found < 0; pass++) {
+          for (cnt = 0; cnt < L; cnt++) {
+            var q = (start + cnt) % L, i0 = left[(q + L - 1) % L], i1 = left[q], i2 = left[(q + 1) % L], c = cr(i0, i1, i2);
+            if (pass < 2 ? c <= eps : c < -eps) continue;
+            if (pass === 0 && emap.has(ek(poly[i0], poly[i2]))) continue;
+            var ok = true;
+            if (pass < 2) for (var w = 0; w < L; w++) {
+              var iw = left[w]; if (iw === i0 || iw === i1 || iw === i2) continue;
+              var d1 = (U[i1] - U[i0]) * (V[iw] - V[i0]) - (V[i1] - V[i0]) * (U[iw] - U[i0]), d2 = (U[i2] - U[i1]) * (V[iw] - V[i1]) - (V[i2] - V[i1]) * (U[iw] - U[i1]), d3 = (U[i0] - U[i2]) * (V[iw] - V[i2]) - (V[i0] - V[i2]) * (U[iw] - U[i2]);
+              if (d1 > -eps && d2 > -eps && d3 > -eps) { ok = false; break; }
+            }
+            if (ok) { found = q; break; }
+          }
+        }
+        if (found < 0) found = start % L;
+        var P = left[(found + L - 1) % L], C = left[found], N = left[(found + 1) % L];
+        out2.push([poly[P], poly[C], poly[N]]); left.splice(found, 1); start = found % left.length;
+      }
+      if (left.length === 3) out2.push([poly[left[0]], poly[left[1]], poly[left[2]]]);
+      return out2;
+    }
+    if (bnd.length && bnd.length < 400000) {
+      var outE = new Map(); bnd.forEach(function (E) { var l = outE.get(E[0]); if (l) l.push(E); else outE.set(E[0], [E]); });
+      var cycles = [];
+      function nextEdge(v) { var l = outE.get(v); while (l && l.length) { var E = l.pop(); if (!E.u) return E; } return null; }
+      bnd.forEach(function (e0) {
+        if (e0.u) return;
+        var path = [], where = new Map(), e = e0, j;
+        while (e) {
+          e.u = 1;
+          if (!where.has(e[0])) { where.set(e[0], path.length); path.push(e[0]); }
+          var y = e[1];
+          if (where.has(y)) { var w = where.get(y); cycles.push(path.slice(w)); for (j = w + 1; j < path.length; j++) where.delete(path[j]); path.length = w + 1; }
+          e = nextEdge(y);
+        }
+      });
+      cycles.forEach(function (cyc) {
+        var poly = cyc.slice().reverse(), made = null;
+        if (poly.length >= 3 && poly.length <= 4000) { try { made = earClip(poly); } catch (er) { made = null; } }
+        if (made && made.length === poly.length - 2) { made.forEach(function (T) { tris.push(T); }); }
+        else {   // fallback: fan from the middle of the hole
+          var mx = 0, my = 0, mz = 0; poly.forEach(function (vi) { mx += pos[vi * 3]; my += pos[vi * 3 + 1]; mz += pos[vi * 3 + 2]; });
+          var ci = pos.length / 3; pos.push(mx / poly.length, my / poly.length, mz / poly.length);
+          for (var q2 = 0; q2 < poly.length; q2++) tris.push([poly[q2], poly[(q2 + 1) % poly.length], ci]);
+        }
         stats.holes++;
       });
       stats.filled = bnd.length;
@@ -2103,7 +2371,7 @@
     L.push('MeshCheck report: ' + p.name, 'File: ' + p.file, 'Checked: ' + new Date().toLocaleString(), '');
     L.push('Printability: ' + r.score + '/100 (' + r.verdict + ')', '');
     L.push('Settings: ' + PRINTERS[settings.printer].name.replace(/ \(.*/, '') + ' (' + settings.bed.join(' x ') + ' mm), ' + settings.nozzle + ' mm nozzle, ' + settings.material + ', ' + settings.layer + ' mm layers, overhang limit ' + settings.overhang + ' degrees, model units ' + UNAME[p.units || 'mm'], '');
-    L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated ' + (r.resin ? 'resin' : 'plastic') + ': ' + r1(M.grams) + ' g', 'Estimated print time: ' + fmtTime(M.minutes), 'Estimated material cost: $' + (Math.round(M.cost * 100) / 100).toFixed(2), '');
+    L.push('Size: ' + r1(M.x) + ' x ' + r1(M.y) + ' x ' + r1(M.z) + ' mm', 'Volume: ' + r1(M.volume / 1000) + ' cm3', 'Triangles: ' + M.tris, 'Estimated ' + (r.resin ? 'resin' : 'plastic') + ': ' + r1(M.grams) + ' g', 'Supports: ' + (M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'needed, a little' : 'needed, about ' + r1(M.support.grams) + ' g extra') : 'not needed') : 'not checked'), 'Estimated print time: ' + fmtTime(M.minutes), 'Estimated material cost: $' + (Math.round(M.cost * 100) / 100).toFixed(2), '');
     if (p.info) L.push('About the part: ' + p.info, '');
     L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
     r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How to fix: ' + it.fix); });
@@ -2133,7 +2401,7 @@
     function esc(x) { return String(x).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
     var h = '<h1>MeshCheck report: ' + esc(p.name) + '</h1><div>' + esc(p.file) + ' · ' + esc(new Date().toLocaleString()) + '</div>';
     h += '<h2>' + r.score + ' / 100 · ' + esc(r.verdict) + '</h2>' + (snap ? '<img alt="Your model" src="' + snap + '">' : '');
-    h += '<h2>Numbers</h2><table>' + [['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'], ['Volume', r1(M.volume / 1000) + ' cm³'], ['Parts', M.bodies || 1], ['Printer', PRINTERS[settings.printer].name], ['Material', settings.material + ', ' + settings.nozzle + ' mm nozzle, ' + settings.layer + ' mm layers'], [r.resin ? 'Resin (est.)' : 'Plastic (est.)', r1(M.grams) + ' g'], ['Print time (est.)', fmtTime(M.minutes)], ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]].map(function (x) { return '<tr><td><b>' + x[0] + '</b></td><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>';
+    h += '<h2>Numbers</h2><table>' + [['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'], ['Volume', r1(M.volume / 1000) + ' cm³'], ['Parts', M.bodies || 1], ['Supports', M.support ? (M.support.needed ? (M.support.grams < 0.05 ? 'Needed, a little' : 'Needed, about ' + r1(M.support.grams) + ' g extra') : 'Not needed') : 'Not checked'], ['Printer', PRINTERS[settings.printer].name], ['Material', settings.material + ', ' + settings.nozzle + ' mm nozzle, ' + settings.layer + ' mm layers'], [r.resin ? 'Resin (est.)' : 'Plastic (est.)', r1(M.grams) + ' g'], ['Print time (est.)', fmtTime(M.minutes)], ['Cost (est.)', '$' + (Math.round(M.cost * 100) / 100).toFixed(2)]].map(function (x) { return '<tr><td><b>' + x[0] + '</b></td><td>' + esc(x[1]) + '</td></tr>'; }).join('') + '</table>';
     if (p.info) h += '<h2>About the part</h2><div>' + esc(p.info) + '</div>';
     h += '<h2>' + (r.issues.length ? 'Things to look at' : 'No problems found') + '</h2>';
     r.issues.forEach(function (it) { h += '<div class="pi"><b>' + esc(it.title) + '</b> (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')<br>' + esc(it.text) + '<br><i>How to fix: ' + esc(it.fix) + '</i></div>'; });
@@ -2208,12 +2476,12 @@
     if (has('sharp', 'spike', 'needle', 'point', 'knife', 'razor')) { var sh = issue('sharp') || issue('knife'); return sh ? sh.text + ' ' + sh.fix : 'I didn’t find any needle-sharp points or razor-thin edges.'; }
     if (has('clearance', 'tolerance', 'too close', 'fuse', 'fit together', 'bolt')) { var cl = issue('closeparts') || issue('smallholes'); return cl ? cl.text + ' ' + cl.fix : 'I didn’t find parts that are too close together or tight holes. For parts that fit together, leave 0.2 to 0.4 mm between them.'; }
     if (has('cavity', 'hollow', 'pocket', 'drain')) { var cv = issue('cavity'); return cv ? cv.text + ' ' + cv.fix : 'I didn’t find any sealed hollow pockets inside your model.'; }
-    if (has('overhang', 'support')) { var o = issue('overhang'); return o ? o.text + ' ' + o.fix : 'I didn’t find overhangs beyond ' + settings.overhang + '° in your model, so it should print without supports. (You can change the angle in Print settings.)'; }
+    if (has('overhang', 'support')) { var o = issue('overhang'); if (r.metrics.support) return (r.metrics.support.needed ? 'Slicing your model layer by layer, I expect it needs supports' + (r.metrics.support.grams < 0.05 ? ', but only a little. ' : ': about ' + r1(r.metrics.support.grams) + ' g of extra plastic. ') : 'Slicing your model layer by layer, I expect it prints without supports. ') + (o ? o.text + ' ' + o.fix : ''); return o ? o.text + ' ' + o.fix : 'I didn’t find overhangs beyond ' + settings.overhang + '° in your model, so it should print without supports. (You can change the angle in Print settings.)'; }
     if (has('thin', 'wall', 'snap', 'break', 'strong', 'strength')) { var t = issue('thin') || issue('small'); return t ? t.text + ' ' + t.fix : 'I didn’t find thin walls. For stronger parts, make walls thicker than ' + r1(settings.nozzle * 3) + ' mm and print with more perimeters.'; }
     if (has('hole', 'manifold', 'watertight', 'repair', 'gap', 'inside out', 'normal', 'flip')) { var h = issue('holes') || issue('overlap') || issue('inverted'); return h ? h.text + ' ' + h.fix : 'The surface of your model is closed and clean, with no holes or flipped faces.'; }
     if (has('orient', 'rotate', 'turn', 'position', 'lay', 'flat')) return 'Press “Best orientation” in the panel and I’ll try six ways of laying your model down and pick the one with the least overhang. ' + (issue('flatbase') || issue('contact') ? 'Your bed contact is small right now, so that may help.' : '');
-    if (has('time', 'how long', 'hours')) return 'Rough guess: ' + fmtTime(r.metrics.minutes) + ' with a ' + settings.nozzle + ' mm nozzle and ' + settings.layer + ' mm layers. Your slicer will give the exact number.';
-    if (has('weight', 'grams', 'much plastic', 'cost', 'filament', 'price', 'how much')) return 'About ' + r1(r.metrics.grams) + ' g of ' + settings.material + (r.resin ? '' : ' with 20% infill') + ', which costs roughly $' + (Math.round(r.metrics.cost * 100) / 100).toFixed(2) + ' at $' + settings.price + ' per kg (change the price in Print settings). Your slicer will have the exact figure.';
+    if (has('time', 'how long', 'hours')) return (r.sliced ? 'About ' : 'Rough guess: ') + fmtTime(r.metrics.minutes) + ' with a ' + settings.nozzle + ' mm nozzle and ' + settings.layer + ' mm layers. Your slicer will give the exact number.';
+    if (has('weight', 'grams', 'much plastic', 'cost', 'filament', 'price', 'how much')) return 'About ' + r1(r.metrics.grams) + ' g of ' + settings.material + (r.resin ? '' : ' with ' + (settings.infill || 20) + '% infill' + (r.metrics.support && r.metrics.support.needed ? ' and supports' : '')) + ', which costs roughly $' + (Math.round(r.metrics.cost * 100) / 100).toFixed(2) + ' at $' + settings.price + ' per kg (change the price in Print settings). Your slicer will have the exact figure.';
     if (has('size', 'fit', 'bed', 'dimension', 'big')) return 'Your model is ' + r1(r.metrics.x) + ' × ' + r1(r.metrics.y) + ' × ' + r1(r.metrics.z) + ' mm. ' + (r.metrics.fits === 'yes' ? 'It fits your printer.' : r.metrics.fits === 'turn' ? 'It fits if you turn it 90° on the bed.' : 'It does not fit your printer’s ' + settings.bed.join(' × ') + ' mm bed, so scale it down or split it.');
     if (has('brim', 'raft', 'adhesion', 'stick', 'warp')) return 'A brim helps tall, narrow or small-base models stay stuck to the bed. Your bed contact is about ' + r1(r.metrics.contact) + ' mm².';
     return r.issues.length ? 'I’m not sure about that one, but here’s what matters most for “' + p.name + '”: ' + r.issues[0].title + '. Ask me how to fix it!' : 'I’m not sure about that one, but your model looks good! Try asking about the score, time, or weight.';
