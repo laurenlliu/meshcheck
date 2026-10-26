@@ -455,6 +455,15 @@
   .tips, .vers { margin: 0 0 14px; padding: 0; list-style: none; font: 500 17px/1.3 var(--garamond); }
   .tips li { background: #fff6e5; border: 2px solid #FF991C; border-radius: 12px; padding: 8px 12px; margin-bottom: 8px; }
   .tips li b { display: block; font-weight: 700; margin-bottom: 2px; }
+  #fitBody { font: 500 17px/1.3 var(--garamond); margin-bottom: 14px; }
+  #fitBody p { margin: 0 0 8px; }
+  .fitrow { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+  .fitrow small { display: block; opacity: .8; }
+  .chip { flex: none; min-width: 84px; text-align: center; padding: 2px 8px; border: 2px solid var(--ink, #1B1F27); border-radius: 999px; font: 700 14px var(--garamond); background: #fff; }
+  .chip.ok { background: #e6f6ec; border-color: #2E9E5B; } .chip.warn { background: #fff6e5; border-color: #FF991C; } .chip.bad { background: #fdeceb; border-color: #D21404; }
+  .fitmove, .fitcmp { background: #fff; border: 2px solid var(--ink, #1B1F27); border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
+  .fitmove b, .fitcmp b { display: block; margin-bottom: 2px; }
+  .fitnote { opacity: .7; }
   .vers { counter-reset: v; }
   .vers li { padding: 4px 0; }
   #printReport { display: none; }
@@ -551,7 +560,7 @@
     </ol>
     <h2>What it looks for</h2>
     <ul class="chips">
-      <li>Holes and gaps</li><li>Inside-out faces</li><li>Overlapping geometry</li><li>Thin walls</li><li>Details too small for your nozzle</li><li>Overhangs and long bridges</li><li>Sharp points</li><li>Small holes that print too tight</li><li>Sealed hollow pockets</li><li>Parts too close together</li><li>Fit on your printer</li><li>Tall, narrow shapes</li><li>Weak bed contact</li><li>Time, weight and cost estimates</li>
+      <li>Holes and gaps</li><li>Inside-out faces</li><li>Overlapping geometry</li><li>Thin walls</li><li>Details too small for your nozzle</li><li>Overhangs and long bridges</li><li>Sharp points</li><li>Small holes that print too tight</li><li>Sealed hollow pockets</li><li>Parts too close together</li><li>How parts fit and slide (tight, snug or loose)</li><li>Whether a moving part sticks out or gets stuck</li><li>Fit on your printer</li><li>Tall, narrow shapes</li><li>Weak bed contact</li><li>Time, weight and cost estimates</li>
     </ul>
   </section>
   <footer class="foot">
@@ -572,6 +581,7 @@
       <h3>What I found</h3>
       <ul class="issues" id="issueList"></ul>
       <div id="tipsWrap" hidden><h3>Tips for this part</h3><ul class="tips" id="tipsList"></ul></div>
+      <div id="fitWrap" hidden><h3>Do the parts fit and move?</h3><div id="fitBody"></div></div>
       <div id="verWrap" hidden><h3>Versions</h3><ol class="vers" id="verList"></ol></div>
       <h3>About your model</h3>
       <dl class="info" id="infoList"></dl>
@@ -583,6 +593,8 @@
         <label>Material <select id="materialSel"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>Resin</option></select></label>
         <label>Layer height <select id="layerSel"><option value="0.05">0.05 mm</option><option value="0.1">0.1 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.2 mm</option><option value="0.28">0.28 mm</option></select></label>
         <label>Infill <span><select id="infillSel" aria-label="Infill percentage"><option value="10">10%</option><option value="15">15%</option><option value="20">20%</option><option value="30">30%</option><option value="50">50%</option><option value="100">100% (solid)</option></select></span></label>
+        <label>Free-sliding gap <span><select id="clearSel" aria-label="Gap that lets parts slide freely on your printer"><option value="0">Auto</option><option value="0.1">0.10 mm</option><option value="0.15">0.15 mm</option><option value="0.2">0.20 mm</option><option value="0.25">0.25 mm</option><option value="0.3">0.30 mm</option><option value="0.4">0.40 mm</option><option value="0.5">0.50 mm</option></select></span></label>
+        <button class="btn small alt wide" id="fitTestBtn" type="button" title="Download a small plate with five holes and two pegs. Print it to find the gap your printer needs for parts that slide">Download fit test piece</button>
         <label>Filament price <span><input type="number" id="priceIn" min="1" max="500" step="1" aria-label="Price per kilogram in dollars"> $/kg</span></label>
         <label>Overhang limit <span><input type="range" id="angleRange" min="30" max="60" step="5" aria-label="Overhang limit in degrees"> <output id="angleOut">45°</output></span></label>
         <label>Model units <select id="unitSel2"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
@@ -596,6 +608,7 @@
         <button class="btn small alt" id="copyBtn" type="button" title="Copy a short summary you can paste into a message">Copy summary</button>
         <button class="btn small alt wide" id="verBtn" type="button" title="Swap in your updated file and see how the score changed">Upload new version</button>
         <input type="file" id="verFile" accept=".stl,.3mf,.obj" hidden>
+        <input type="file" id="workedFile" accept=".stl,.3mf,.obj" hidden>
         <input type="file" id="reFile" accept=".stl,.3mf,.obj" hidden>
       </div>
     </aside>
@@ -1081,14 +1094,14 @@
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
   // how much to trust each finding: exact = measured directly on the mesh, good = reliable but depends on the slicer, est = a sampled or rule-of-thumb estimate
-  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est' };
+  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', collide: 'good', tightfit: 'est', loosefit: 'est', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est' };
   var CONFTXT = {
     exact: ['Exact check', 'I measured this directly on your model, so you can rely on it.'],
     good: ['Reliable', 'I measured this on your model, but a slicer may judge borderline cases differently. Check it in your slicer preview.'],
     est: ['Estimate', 'I find this by sampling points on your surface and using rules of thumb, so an occasional miss or false alarm is possible. Double-check it in your slicer preview.']
   };
   var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
-  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20, infill: 20 };
+  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20, infill: 20, clear: 0 };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
   function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} if (window.mcSettingsChanged) window.mcSettingsChanged(); }
 
@@ -1502,6 +1515,35 @@
         'The file contains ' + bodies + ' parts that don’t touch each other. That is fine for printing a set, but double check it is what you meant.',
         'If it should be one part, join them in your CAD program. If they are meant to be separate, leave them and print them together.', null);
     }
+    if (bodies > 1 && o.fit !== false) {
+      try { res.fit = fitAnalyze(m, n, o); } catch (e) { res.fit = null; }
+      var FT = res.fit, fitAdded = false;
+      if (FT) {
+        var worstO = null;
+        FT.pairs.forEach(function (q) { if (q.overlap && q.depth >= 0.2 && (!worstO || q.depth > worstO.depth)) worstO = q; });
+        if (worstO) {
+          var small = FT.parts[worstO.a].vol < FT.parts[worstO.b].vol ? worstO.a : worstO.b; fitAdded = true;
+          add('collide', 'warn', 1, 'Parts overlap each other', 'Parts overlap',
+            fitName(FT, worstO.a) + ' and ' + fitName(FT, worstO.b) + ' overlap by about ' + r2(worstO.depth) + ' mm. A slicer melts overlapping parts into one solid lump, so they can’t move against each other.',
+            'Move them apart or trim one so they leave a gap of about ' + FT.c + ' mm where one has to move. If they are meant to be one piece, join them in your CAD program.', FT.parts[small].idx);
+        }
+        FT.movers.forEach(function (v) {
+          if (v.min == null) return;
+          var P = FT.parts[v.part];
+          if (v.min < 0.5 * FT.c && v.tightFrac > 0.2) {
+            fitAdded = true;
+            add('tightfit', 'warn', 1, 'Moving part squeezes too tight', 'Sliding part too tight',
+              fitName(FT, v.part) + ' looks like it is meant to slide (it can travel about ' + r1(v.total) + ' mm ' + AXN[v.axis] + '), but it gets within ' + r2(v.min) + ' mm of ' + (v.minWho >= 0 ? 'Part ' + (v.minWho + 1) : 'another part') + ' for about ' + Math.round(v.tightFrac * 100) + '% of that travel. Printed plastic spreads about 0.1 to 0.2 mm, so gaps this small usually fuse or bind. A free-sliding gap on your printer is about ' + FT.c + ' mm' + (FT.auto ? ' (a typical value; set yours in Print settings)' : '') + '.',
+              'Widen the slot or hole, or slim the sliding part, by about ' + r2(FT.c - v.min) + ' mm on each side so the gap is at least ' + FT.c + ' mm. Print the fit test piece (under Print settings) to find the right gap for your printer.', P.idx);
+          } else if (v.min > 2 * FT.c && v.total > 3) {
+            add('loosefit', 'info', 2, 'Moving part may wobble', 'Sliding part loose',
+              fitName(FT, v.part) + ' can slide about ' + r1(v.total) + ' mm and keeps at least ' + r2(v.min) + ' mm of room, more than twice a free-sliding gap of ' + FT.c + ' mm, so it may wobble or rattle.',
+              'If you want it steadier, reduce the gap to about ' + FT.c + ' mm, or add a small bump so it clicks into place.', P.idx);
+          }
+        });
+        if (fitAdded) res.issues = res.issues.filter(function (it) { return it.id !== 'closeparts'; });
+      }
+    }
 
     // tips from what the part is for
     var pu = purposeTips(o.purpose, o.material);
@@ -1548,6 +1590,337 @@
     }
     res.metrics.cost = res.metrics.grams / 1000 * (o.price || 20);
     return res;
+  }
+
+  /* ---------- fit and motion: how parts sit against each other ---------- */
+function splitParts(m, n, perMm) {
+  var i, k, lo = [1e30, 1e30, 1e30], hi = [-1e30, -1e30, -1e30];
+  for (i = 0; i < n * 3; i++) for (k = 0; k < 3; k++) { var v = m[i * 3 + k]; if (v < lo[k]) lo[k] = v; if (v > hi[k]) hi[k] = v; }
+  var q = (Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1) * 1e-5, ids = new Map(), vid = new Int32Array(n * 3);
+  for (i = 0; i < n * 3; i++) {
+    var key = Math.round(m[i * 3] / q) + ',' + Math.round(m[i * 3 + 1] / q) + ',' + Math.round(m[i * 3 + 2] / q), id = ids.get(key);
+    if (id === undefined) { id = ids.size; ids.set(key, id); } vid[i] = id;
+  }
+  var par = new Int32Array(ids.size); for (i = 0; i < par.length; i++) par[i] = i;
+  function find(x) { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; }
+  for (i = 0; i < n; i++) { par[find(vid[i * 3 + 1])] = find(vid[i * 3]); par[find(vid[i * 3 + 2])] = find(vid[i * 3]); }
+  var C = new Map(), f = 1 / perMm;
+  for (i = 0; i < n; i++) {
+    var r = find(vid[i * 3]), c = C.get(r); if (!c) { c = { tris: [], vol: 0, lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30] }; C.set(r, c); }
+    c.tris.push(i);
+    var a = [], j; for (j = 0; j < 3; j++) { a.push([m[i * 9 + j * 3] * f, m[i * 9 + j * 3 + 1] * f, m[i * 9 + j * 3 + 2] * f]); for (k = 0; k < 3; k++) { if (a[j][k] < c.lo[k]) c.lo[k] = a[j][k]; if (a[j][k] > c.hi[k]) c.hi[k] = a[j][k]; } }
+    c.vol += (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0])) / 6;
+  }
+  // a hollow part has an inner shell that faces inward (negative volume); give it to the solid it sits inside instead of calling it a part
+  var all = []; C.forEach(function (c) { if (c.tris.length >= 4) all.push(c); });
+  var big = all.reduce(function (b, c) { return !b || Math.abs(c.vol) > Math.abs(b.vol) ? c : b; }, null), sgn = big && big.vol < 0 ? -1 : 1, list = [];
+  all.forEach(function (c) { c.vol *= sgn; });
+  all.forEach(function (c) { if (c.vol > 0) list.push(c); });
+  all.forEach(function (c) {
+    if (c.vol >= 0) return;
+    var host = null; list.forEach(function (h) { if (h.lo[0] <= c.lo[0] + 1e-6 && h.lo[1] <= c.lo[1] + 1e-6 && h.lo[2] <= c.lo[2] + 1e-6 && h.hi[0] >= c.hi[0] - 1e-6 && h.hi[1] >= c.hi[1] - 1e-6 && h.hi[2] >= c.hi[2] - 1e-6 && (!host || h.vol < host.vol)) host = h; });
+    if (host) { host.tris = host.tris.concat(c.tris); host.vol += c.vol; }
+  });
+  list = list.filter(function (c) { return c.vol >= 1; });
+  list.sort(function (x, y) { return y.vol - x.vol; });
+  // triangles in millimeters, one flat array per part, and a lookup grid
+  list.forEach(function (c, ci) {
+    c.id = ci; c.T = new Float64Array(c.tris.length * 9);
+    c.tris.forEach(function (t, j) { for (var e = 0; e < 9; e++) c.T[j * 9 + e] = m[t * 9 + e] * f; });
+    c.nt = c.tris.length; c.idx = c.tris; delete c.tris;
+    var d = Math.max(c.hi[0] - c.lo[0], c.hi[1] - c.lo[1], c.hi[2] - c.lo[2], 1e-6), cs = Math.max(d / 48, 0.4), g = c.grid = { cs: cs, nx: Math.ceil((c.hi[0] - c.lo[0]) / cs) + 1, ny: Math.ceil((c.hi[1] - c.lo[1]) / cs) + 1, nz: Math.ceil((c.hi[2] - c.lo[2]) / cs) + 1, cell: new Map() };
+    for (var t = 0; t < c.nt; t++) {
+      var o = t * 9, mn = [1e30, 1e30, 1e30], mx = [-1e30, -1e30, -1e30];
+      for (var v = 0; v < 3; v++) for (k = 0; k < 3; k++) { var w = c.T[o + v * 3 + k]; if (w < mn[k]) mn[k] = w; if (w > mx[k]) mx[k] = w; }
+      var x0 = Math.floor((mn[0] - c.lo[0]) / cs), x1 = Math.floor((mx[0] - c.lo[0]) / cs), y0 = Math.floor((mn[1] - c.lo[1]) / cs), y1 = Math.floor((mx[1] - c.lo[1]) / cs), z0 = Math.floor((mn[2] - c.lo[2]) / cs), z1 = Math.floor((mx[2] - c.lo[2]) / cs);
+      for (var X = x0; X <= x1; X++) for (var Y = y0; Y <= y1; Y++) for (var Z = z0; Z <= z1; Z++) { var key2 = (X * g.ny + Y) * g.nz + Z, arr = g.cell.get(key2); if (!arr) g.cell.set(key2, arr = []); arr.push(t); }
+    }
+  });
+  return list;
+}
+// shortest distance from point p to triangle (a,b,c)
+function ptTri(px, py, pz, T, o) {
+  var ax = T[o], ay = T[o + 1], az = T[o + 2], bx = T[o + 3], by = T[o + 4], bz = T[o + 5], cx = T[o + 6], cy = T[o + 7], cz = T[o + 8];
+  var abx = bx - ax, aby = by - ay, abz = bz - az, acx = cx - ax, acy = cy - ay, acz = cz - az, apx = px - ax, apy = py - ay, apz = pz - az;
+  var d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz, qx, qy, qz;
+  if (d1 <= 0 && d2 <= 0) { qx = ax; qy = ay; qz = az; }
+  else {
+    var bpx = px - bx, bpy = py - by, bpz = pz - bz, d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+    if (d3 >= 0 && d4 <= d3) { qx = bx; qy = by; qz = bz; }
+    else {
+      var vc = d1 * d4 - d3 * d2;
+      if (vc <= 0 && d1 >= 0 && d3 <= 0) { var v1 = d1 / (d1 - d3); qx = ax + v1 * abx; qy = ay + v1 * aby; qz = az + v1 * abz; }
+      else {
+        var cpx = px - cx, cpy = py - cy, cpz = pz - cz, d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+        if (d6 >= 0 && d5 <= d6) { qx = cx; qy = cy; qz = cz; }
+        else {
+          var vb = d5 * d2 - d1 * d6;
+          if (vb <= 0 && d2 >= 0 && d6 <= 0) { var w1 = d2 / (d2 - d6); qx = ax + w1 * acx; qy = ay + w1 * acy; qz = az + w1 * acz; }
+          else {
+            var va = d3 * d6 - d5 * d4;
+            if (va <= 0 && (d4 - d3) >= 0 && (d5 - d6) >= 0) { var w2 = (d4 - d3) / ((d4 - d3) + (d5 - d6)); qx = bx + w2 * (cx - bx); qy = by + w2 * (cy - by); qz = bz + w2 * (cz - bz); }
+            else { var den = 1 / (va + vb + vc), vv = vb * den, ww = vc * den; qx = ax + abx * vv + acx * ww; qy = ay + aby * vv + acy * ww; qz = az + abz * vv + acz * ww; }
+          }
+        }
+      }
+    }
+  }
+  var dx = px - qx, dy = py - qy, dz = pz - qz; return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+// nearest distance from a point to part B, looking no farther than R (mm); returns R+ when nothing is that close
+function nearDist(B, px, py, pz, R) {
+  var g = B.grid, cs = g.cs, x0 = Math.max(0, Math.floor((px - R - B.lo[0]) / cs)), x1 = Math.min(g.nx - 1, Math.floor((px + R - B.lo[0]) / cs)),
+    y0 = Math.max(0, Math.floor((py - R - B.lo[1]) / cs)), y1 = Math.min(g.ny - 1, Math.floor((py + R - B.lo[1]) / cs)),
+    z0 = Math.max(0, Math.floor((pz - R - B.lo[2]) / cs)), z1 = Math.min(g.nz - 1, Math.floor((pz + R - B.lo[2]) / cs)), best = R + 1;
+  if (x0 > x1 || y0 > y1 || z0 > z1) return best;
+  B.stamp = B.stamp || new Int32Array(B.nt); B.st = (B.st || 0) + 1;
+  for (var X = x0; X <= x1; X++) for (var Y = y0; Y <= y1; Y++) for (var Z = z0; Z <= z1; Z++) {
+    var arr = g.cell.get((X * g.ny + Y) * g.nz + Z); if (!arr) continue;
+    for (var j = 0; j < arr.length; j++) { var t = arr[j]; if (B.stamp[t] === B.st) continue; B.stamp[t] = B.st; var d = ptTri(px, py, pz, B.T, t * 9); if (d < best) best = d; }
+  }
+  return best;
+}
+// shoot a ray along an axis (ax 0,1,2; sign +1/-1) from a point and return the distance to the first surface hit of part B, or Infinity
+function rayHit(B, ax, sg, px, py, pz, all) {
+  var u = (ax + 1) % 3, w = (ax + 2) % 3, P = [px, py, pz], g = B.grid, cs = g.cs, N = [g.nx, g.ny, g.nz];
+  var cu = Math.floor((P[u] - B.lo[u]) / cs), cw = Math.floor((P[w] - B.lo[w]) / cs);
+  if (cu < 0 || cw < 0 || cu >= N[u] || cw >= N[w]) return all ? [] : Infinity;
+  B.stamp = B.stamp || new Int32Array(B.nt); B.st = (B.st || 0) + 1;
+  var hits = [], best = Infinity, c0 = Math.floor((P[ax] - B.lo[ax]) / cs), c;
+  for (c = sg > 0 ? Math.max(0, c0) : Math.min(N[ax] - 1, c0); c >= 0 && c < N[ax]; c += sg) {
+    var cc = [0, 0, 0]; cc[ax] = c; cc[u] = cu; cc[w] = cw;
+    var arr = g.cell.get((cc[0] * g.ny + cc[1]) * g.nz + cc[2]);
+    if (arr) for (var j = 0; j < arr.length; j++) {
+      var t = arr[j]; if (B.stamp[t] === B.st) continue; B.stamp[t] = B.st;
+      var o = t * 9, T = B.T, A0 = T[o + ax], A1 = T[o + 3 + ax], A2 = T[o + 6 + ax];
+      var au = T[o + u], bu = T[o + 3 + u], cu2 = T[o + 6 + u], aw = T[o + w], bw = T[o + 3 + w], cw2 = T[o + 6 + w];
+      var d = (bu - au) * (cw2 - aw) - (bw - aw) * (cu2 - au); if (Math.abs(d) < 1e-14) continue;
+      var pu = P[u] - au, pw = P[w] - aw, l1 = (pu * (cw2 - aw) - pw * (cu2 - au)) / d, l2 = ((bu - au) * pw - (bw - aw) * pu) / d;
+      if (l1 < 0 || l2 < 0 || l1 + l2 > 1) continue;
+      var h = (A0 + l1 * (A1 - A0) + l2 * (A2 - A0)) - P[ax], tt = h * sg;
+      if (tt > 1e-9) { if (all) hits.push(tt); else if (tt < best) best = tt; }
+    }
+    if (!all && best < Infinity && (c - c0) * sg * cs > best + cs) break;
+  }
+  return all ? hits : best;
+}
+function insideOf(B, px, py, pz) {   // is the point inside part B? (ray parity along Z, nudged off shared edges)
+  if (px < B.lo[0] || px > B.hi[0] || py < B.lo[1] || py > B.hi[1] || pz < B.lo[2] || pz > B.hi[2]) return false;
+  var h = rayHit(B, 2, 1, px + 1.234e-5, py + 2.718e-5, pz, true); return (h.length & 1) === 1;
+}
+// area-weighted surface samples (plus every corner) of a part
+function samplePart(A, count) {
+  var out = [], t, i, areas = new Float64Array(A.nt), tot = 0, T = A.T;
+  for (t = 0; t < A.nt; t++) {
+    var o = t * 9, ux = T[o + 3] - T[o], uy = T[o + 4] - T[o + 1], uz = T[o + 5] - T[o + 2], vx = T[o + 6] - T[o], vy = T[o + 7] - T[o + 1], vz = T[o + 8] - T[o + 2];
+    var cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx; areas[t] = 0.5 * Math.sqrt(cx * cx + cy * cy + cz * cz); tot += areas[t];
+    out.push(T[o], T[o + 1], T[o + 2]);
+  }
+  var per = count / (tot || 1), seed = 12345;
+  function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+  for (t = 0; t < A.nt; t++) {
+    var k = areas[t] * per, nk = Math.floor(k) + (rnd() < k - Math.floor(k) ? 1 : 0), o2 = t * 9;
+    for (i = 0; i < nk; i++) {
+      var r1 = rnd(), r2 = rnd(); if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
+      out.push(T[o2] + r1 * (T[o2 + 3] - T[o2]) + r2 * (T[o2 + 6] - T[o2]), T[o2 + 1] + r1 * (T[o2 + 4] - T[o2 + 1]) + r2 * (T[o2 + 7] - T[o2 + 1]), T[o2 + 2] + r1 * (T[o2 + 5] - T[o2 + 2]) + r2 * (T[o2 + 8] - T[o2 + 2]));
+    }
+  }
+  return out;
+}
+// how two parts sit against each other: closest approach, overlap, and the typical gap where they face each other
+function pairFit(A, B, S, reach) {
+  var k;
+  for (k = 0; k < 3; k++) { if (A.lo[k] - reach > B.hi[k] || B.lo[k] - reach > A.hi[k]) return null; }
+  var minD = Infinity, ds = [], inside = 0, depth = 0, touch = 0, n = 0;
+  function run(X, Y, SX) {
+    for (var i = 0; i < SX.length; i += 3) {
+      var px = SX[i], py = SX[i + 1], pz = SX[i + 2];
+      if (px < Y.lo[0] - reach || px > Y.hi[0] + reach || py < Y.lo[1] - reach || py > Y.hi[1] + reach || pz < Y.lo[2] - reach || pz > Y.hi[2] + reach) continue;
+      var d = nearDist(Y, px, py, pz, reach); n++;
+      if (insideOf(Y, px, py, pz)) { inside++; var dd = nearDist(Y, px, py, pz, 6); if (dd > depth && dd <= 6) depth = dd; d = 0; touch++; continue; }
+      if (d <= reach) { ds.push(d); if (d < minD) minD = d; if (d < 0.05) touch++; }
+    }
+  }
+  run(A, B, S[A.id]); run(B, A, S[B.id]);
+  if (!ds.length && !inside) return null;
+  ds.sort(function (a, b) { return a - b; });
+  var med = ds.length ? ds[ds.length >> 1] : 0, p10 = ds.length ? ds[Math.floor(ds.length * 0.1)] : 0;
+  return { a: A.id, b: B.id, gap: inside ? -depth : minD, overlap: inside > 0, depth: depth, typical: med, p10: p10, facing: ds.length, insideN: inside, touchN: touch };
+}
+// how far can part ai slide along an axis before it hits another part? Samples that already overlap at the start are ignored.
+function motion(parts, S, ai, ax, limit) {
+  var A = parts[ai], res = { pos: limit, neg: limit, posBy: -1, negBy: -1 }, u = (ax + 1) % 3, w = (ax + 2) % 3;
+  function side(SX, M, mover, sg, other, rev) {   // rays from mover's samples toward `other`
+    for (var i = 0; i < SX.length; i += 3) {
+      var px = SX[i], py = SX[i + 1], pz = SX[i + 2], P = [px, py, pz];
+      if (P[u] < other.lo[u] || P[u] > other.hi[u] || P[w] < other.lo[w] || P[w] > other.hi[w]) continue;
+      if (insideOf(other, px, py, pz)) continue;
+      var h = rayHit(other, ax, sg, px, py, pz, false);
+      var dir = rev ? -sg : sg;                                  // direction the part A moves
+      if (dir > 0 && h < res.pos) { res.pos = h; res.posBy = other === A ? mover.id : other.id; }
+      if (dir < 0 && h < res.neg) { res.neg = h; res.negBy = other === A ? mover.id : other.id; }
+    }
+  }
+  for (var b = 0; b < parts.length; b++) {
+    if (b === ai) continue;
+    for (var sg = -1; sg <= 1; sg += 2) { side(S[ai], 0, A, sg, parts[b], false); side(S[b], 0, parts[b], sg, A, true); }
+  }
+  return res;
+}
+// slide a part along an axis and measure the closest approach to the other parts at each position
+function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
+  var A = parts[ai], u = (ax + 1) % 3, w = (ax + 2) % 3, reach = 1.2, out = [], mov = [], fix = [], i, b, st;
+  var SA = S[ai];
+  for (i = 0; i < SA.length; i += 3) mov.push(SA[i], SA[i + 1], SA[i + 2]);
+  for (b = 0; b < parts.length; b++) {
+    if (b === ai) continue;
+    var SB = S[b], B = parts[b];
+    for (i = 0; i < SB.length; i += 3) {
+      var q = [SB[i], SB[i + 1], SB[i + 2]];
+      if (q[u] < A.lo[u] - reach || q[u] > A.hi[u] + reach || q[w] < A.lo[w] - reach || q[w] > A.hi[w] + reach) continue;
+      if (q[ax] < A.lo[ax] - neg - reach || q[ax] > A.hi[ax] + pos + reach) continue;
+      fix.push(q[0], q[1], q[2]);
+    }
+  }
+  var others = parts.filter(function (p, k) { return k !== ai; });
+  for (st = 0; st <= steps; st++) {
+    var t = -neg + (pos + neg) * st / steps, best = reach + 1, who = -1, at = null;
+    for (i = 0; i < mov.length; i += 3) {
+      var P = [mov[i], mov[i + 1], mov[i + 2]]; P[ax] += t;
+      for (b = 0; b < others.length; b++) { var B2 = others[b]; if (P[0] < B2.lo[0] - reach || P[0] > B2.hi[0] + reach || P[1] < B2.lo[1] - reach || P[1] > B2.hi[1] + reach || P[2] < B2.lo[2] - reach || P[2] > B2.hi[2] + reach) continue; var d = nearDist(B2, P[0], P[1], P[2], Math.min(reach, best)); if (d < best) { best = d; who = B2.id; at = P; } }
+    }
+    for (i = 0; i < fix.length; i += 3) {
+      var Q = [fix[i], fix[i + 1], fix[i + 2]]; Q[ax] -= t;
+      if (Q[0] < A.lo[0] - reach || Q[0] > A.hi[0] + reach || Q[1] < A.lo[1] - reach || Q[1] > A.hi[1] + reach || Q[2] < A.lo[2] - reach || Q[2] > A.hi[2] + reach) continue;
+      var d2 = nearDist(A, Q[0], Q[1], Q[2], Math.min(reach, best)); if (d2 < best) { best = d2; at = [fix[i], fix[i + 1], fix[i + 2]]; }
+    }
+    out.push({ t: t, gap: best > reach ? reach : best, who: who, at: at });
+    if (deadline && Date.now() > deadline) break;
+  }
+  return out;
+}
+
+  var AXN = ['side to side (X)', 'along the length (Y)', 'up and down (Z)'], AXS = ['sideways (X)', 'lengthwise (Y)', 'up and down (Z)'];
+  var OUTN = [['past the left side of', 'past the right side of'], ['past the near end of', 'past the far end of'], ['below', 'above']];
+  var FITTXT = {
+    overlap: 'The parts pass through each other, so a slicer prints them as one solid lump.',
+    touch: 'They touch, so they print fused together. Fine if they should be glued, a problem if one has to move.',
+    tight: 'Printed plastic spreads a little, so these will probably fuse or bind.',
+    snug: 'A press fit: it should hold with friction, but may be hard to move.',
+    free: 'A gap that lets the parts slide easily without wobbling.',
+    loose: 'Plenty of room: it moves freely but may wobble or rattle.'
+  };
+  function fitName(F, id) { var P = F.parts[id], f = function (x) { return Math.round(x * 10) / 10; }; return 'Part ' + (id + 1) + ' (' + f(P.size[0]) + ' × ' + f(P.size[1]) + ' × ' + f(P.size[2]) + ' mm)'; }
+  function fitClass(g, c) {
+    if (g < -0.05) return { k: 'overlap', label: 'Overlapping', tone: 'bad' };
+    if (g < 0.03) return { k: 'touch', label: 'Touching', tone: 'warn' };
+    if (g < 0.5 * c) return { k: 'tight', label: 'Too tight', tone: 'bad' };
+    if (g < c) return { k: 'snug', label: 'Snug', tone: 'ok' };
+    if (g <= 2 * c) return { k: 'free', label: 'Free fit', tone: 'ok' };
+    return { k: 'loose', label: 'Loose', tone: 'warn' };
+  }
+  // measures how the separate parts of one file sit against each other and how far they can slide
+  function fitAnalyze(m, n, o) {
+    var perMm = o.perMm || 1, resin = o.material === 'Resin', deadline = Date.now() + (o.budget || 4500);
+    if (n > 300000) return null;
+    var parts = splitParts(m, n, perMm); if (parts.length < 2 || parts.length > 14) return null;
+    var c = o.clear > 0 ? o.clear : (resin ? 0.15 : 0.3), span = 0, i, j, k;
+    parts.forEach(function (p) { for (k = 0; k < 3; k++) span = Math.max(span, p.hi[k] - p.lo[k]); });
+    var S = parts.map(function (p) { return samplePart(p, 4000); });
+    var F = { c: c, auto: !(o.clear > 0), parts: [], pairs: [], movers: [], partial: false };
+    parts.forEach(function (p, ii) { F.parts.push({ id: ii, label: 'Part ' + (ii + 1), vol: p.vol, size: [p.hi[0] - p.lo[0], p.hi[1] - p.lo[1], p.hi[2] - p.lo[2]], lo: p.lo, hi: p.hi, idx: p.idx }); });
+    var nested = {};
+    for (i = 0; i < parts.length; i++) for (j = i + 1; j < parts.length; j++) {
+      if (Date.now() > deadline) { F.partial = true; break; }
+      var r = pairFit(parts[i], parts[j], S, 3); if (!r) continue;
+      r.cls = fitClass(r.gap, c); F.pairs.push(r); nested[i] = nested[j] = 1;
+    }
+    var cand = [];
+    for (i = 0; i < parts.length && i < 10; i++) {
+      if (!nested[i]) continue;
+      var best = null;
+      for (k = 0; k < 3; k++) {
+        if (Date.now() > deadline) { F.partial = true; break; }
+        var mo = motion(parts, S, i, k, span);
+        if (mo.pos >= span * 0.999 || mo.neg >= span * 0.999) continue;      // free on one side: a lid or loose piece, not a slider
+        var tot = mo.pos + mo.neg; if (tot >= 2 && (!best || tot > best.total)) best = { part: i, axis: k, pos: mo.pos, neg: mo.neg, total: tot, posBy: mo.posBy, negBy: mo.negBy };
+      }
+      if (best) cand.push(best);
+    }
+    cand.sort(function (a, b) { return parts[a.part].vol - parts[b.part].vol; });   // when two parts block each other the same way, keep the smaller one as the mover
+    var kept = [];
+    cand.forEach(function (cd) { var dup = kept.some(function (k) { return k.axis === cd.axis && Math.abs(k.total - cd.total) < 0.5 && (k.part === cd.posBy || k.part === cd.negBy); }); if (!dup) kept.push(cd); });
+    cand = kept.sort(function (a, b) { return b.total - a.total; });
+    cand.slice(0, 3).forEach(function (cd) {
+      if (Date.now() > deadline) { F.partial = true; return; }
+      var steps = Math.max(12, Math.min(48, Math.round(cd.total / 0.8))), sw = sweep(parts, S, cd.part, cd.axis, cd.neg, cd.pos, steps, deadline);
+      if (sw.length < steps + 1) F.partial = true;
+      var inner = sw.slice(1, sw.length - 1), mn = null, sum = 0, tightN = 0;
+      inner.forEach(function (s) { if (!mn || s.gap < mn.gap) mn = s; sum += s.gap; if (s.gap < 0.5 * c) tightN++; });
+      var P = parts[cd.part], sticks = [], partner = -1, pf = -1;
+      F.pairs.forEach(function (q) { if (q.a === cd.part || q.b === cd.part) { var fc = q.facing + (q.overlap ? q.insideN : 0); if (fc > pf) { pf = fc; partner = q.a === cd.part ? q.b : q.a; } } });
+      for (k = 0; k < 3 && partner >= 0; k++) {
+        if (k === cd.axis) continue;
+        var ohi = parts[partner].hi[k], olo = parts[partner].lo[k];
+        if (P.hi[k] - ohi > 0.3) sticks.push({ axis: k, dir: 1, mm: P.hi[k] - ohi });
+        if (olo - P.lo[k] > 0.3) sticks.push({ axis: k, dir: 0, mm: olo - P.lo[k] });
+      }
+      F.movers.push({ part: cd.part, axis: cd.axis, neg: cd.neg, pos: cd.pos, total: cd.total, min: mn ? mn.gap : null, minT: mn ? mn.t : 0, minWho: mn ? mn.who : -1, partner: partner, tightFrac: inner.length ? tightN / inner.length : 0, mean: inner.length ? sum / inner.length : null, profile: sw.map(function (s) { return [Math.round(s.t * 100) / 100, Math.round(s.gap * 1000) / 1000]; }), sticks: sticks, negBy: cd.negBy, posBy: cd.posBy });
+    });
+    return F;
+  }
+  function fitSummary(F) {
+    if (!F) return null;
+    return { c: F.c, n: F.parts.length, movers: F.movers.map(function (v) { var P = F.parts[v.part]; return { vol: Math.round(P.vol), size: P.size.map(function (x) { return Math.round(x * 10) / 10; }), axis: v.axis, total: Math.round(v.total * 10) / 10, min: v.min == null ? null : Math.round(v.min * 1000) / 1000, sticks: v.sticks.map(function (s) { return { axis: s.axis, dir: s.dir, mm: Math.round(s.mm * 10) / 10 }; }) }; }), pairs: F.pairs.map(function (q) { return { v: [Math.round(F.parts[q.a].vol), Math.round(F.parts[q.b].vol)], gap: Math.round(q.gap * 1000) / 1000 }; }) };
+  }
+  // what is different from a version that worked
+  function compareFit(W, C) {
+    var out = [], used = {};
+    if (!W || !C) return out;
+    if (W.n !== C.n) out.push('The file has ' + C.n + ' parts, the version that worked had ' + W.n + '.');
+    C.movers.forEach(function (c, ci) {
+      var bi = -1, bd = 1e30;
+      W.movers.forEach(function (w, wi) { if (used[wi]) return; var d = Math.abs(Math.log(w.vol / c.vol)); if (d < bd) { bd = d; bi = wi; } });
+      var tag = 'The moving part (' + c.size.join(' × ') + ' mm)';
+      if (bi < 0 || bd > 1.2) { out.push(tag + ' has no match in the version that worked.'); return; }
+      used[bi] = true; var w = W.movers[bi], bits = [];
+      var dv = (c.vol - w.vol) / w.vol; if (Math.abs(dv) > 0.03) bits.push('volume ' + w.vol + ' to ' + c.vol + ' mm³ (' + (dv > 0 ? '+' : '') + Math.round(dv * 100) + '%)');
+      var dims = ['wide', 'long', 'tall']; for (var k = 0; k < 3; k++) { var dl = c.size[k] - w.size[k]; if (Math.abs(dl) > 0.3) bits.push((dl > 0 ? Math.round(dl * 10) / 10 + ' mm ' + dims[k] + 'er' : Math.round(-dl * 10) / 10 + ' mm ' + (k === 2 ? 'shorter' : k === 0 ? 'narrower' : 'shorter'))); }
+      if (c.axis === w.axis && Math.abs(c.total - w.total) > 1) bits.push('travel ' + w.total + ' to ' + c.total + ' mm');
+      if (c.axis !== w.axis) bits.push('it now slides ' + AXS[c.axis] + ' instead of ' + AXS[w.axis]);
+      if (c.min != null && w.min != null && Math.abs(c.min - w.min) > 0.03) bits.push('closest gap while sliding ' + w.min + ' to ' + c.min + ' mm');
+      c.sticks.forEach(function (s) { var ws = null; w.sticks.forEach(function (x) { if (x.axis === s.axis && x.dir === s.dir) ws = x; }); if (!ws) bits.push('now sticks out ' + s.mm + ' mm ' + OUTN[s.axis][s.dir] + ' the part it slides in'); else if (Math.abs(ws.mm - s.mm) > 0.3) bits.push('sticks out only ' + s.mm + ' mm ' + OUTN[s.axis][s.dir] + ' the part it slides in (it was ' + ws.mm + ' mm)'); });
+      w.sticks.forEach(function (ws) { var hit = false; c.sticks.forEach(function (x) { if (x.axis === ws.axis && x.dir === ws.dir) hit = true; }); if (!hit) bits.push('no longer sticks out ' + OUTN[ws.axis][ws.dir] + ' the part it slides in'); });
+      if (bits.length) out.push(tag + ': ' + bits.join('; ') + '.');
+    });
+    return out;
+  }
+  // a small test piece: a plate with five holes slightly bigger than a peg, plus two pegs
+  function makeFitTest() {
+    var T = [], N = 64, h = 8, th = 4, cls = [0.1, 0.2, 0.3, 0.4, 0.5], pegR = 4, i, c, k;
+    function tri(a, b, d) { T.push(a[0], a[1], a[2], b[0], b[1], b[2], d[0], d[1], d[2]); }
+    for (c = 0; c < 5; c++) {
+      var cx = h + c * 2 * h, cy = h, r = pegR + cls[c], P = [], B = [];
+      for (k = 0; k < N; k++) { var a = 2 * Math.PI * k / N, co = Math.cos(a), si = Math.sin(a), sc = h / Math.max(Math.abs(co), Math.abs(si)); P.push([cx + r * co, cy + r * si]); B.push([cx + sc * co, cy + sc * si]); }
+      for (k = 0; k < N; k++) {
+        var k2 = (k + 1) % N, p0 = P[k], p1 = P[k2], b0 = B[k], b1 = B[k2];
+        tri([p0[0], p0[1], th], [b0[0], b0[1], th], [b1[0], b1[1], th]); tri([p0[0], p0[1], th], [b1[0], b1[1], th], [p1[0], p1[1], th]);
+        tri([p0[0], p0[1], 0], [b1[0], b1[1], 0], [b0[0], b0[1], 0]); tri([p0[0], p0[1], 0], [p1[0], p1[1], 0], [b1[0], b1[1], 0]);
+        tri([p1[0], p1[1], 0], [p0[0], p0[1], 0], [p0[0], p0[1], th]); tri([p1[0], p1[1], 0], [p0[0], p0[1], th], [p1[0], p1[1], th]);
+        var mx = (b0[0] + b1[0]) / 2, my = (b0[1] + b1[1]) / 2, outside = Math.abs(my - cy) > h - 1e-6 || (c === 0 && mx < cx - h + 1e-6) || (c === 4 && mx > cx + h - 1e-6);
+        if (outside) { tri([b0[0], b0[1], 0], [b1[0], b1[1], 0], [b1[0], b1[1], th]); tri([b0[0], b0[1], 0], [b1[0], b1[1], th], [b0[0], b0[1], th]); }
+      }
+    }
+    function cyl(cx, cy, r, z0, z1) {
+      for (var q = 0; q < 48; q++) {
+        var a0 = 2 * Math.PI * q / 48, a1 = 2 * Math.PI * (q + 1) / 48, x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0), x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+        tri([cx, cy, z1], [x0, y0, z1], [x1, y1, z1]); tri([cx, cy, z0], [x1, y1, z0], [x0, y0, z0]);
+        tri([x0, y0, z0], [x1, y1, z0], [x1, y1, z1]); tri([x0, y0, z0], [x1, y1, z1], [x0, y0, z1]);
+      }
+    }
+    cyl(14, 36, pegR, 0, 10); cyl(30, 36, pegR, 0, 10);   // two pegs (one spare)
+    cyl(3.5, 12.5, 1.5, th, th + 1.2);                    // marker bump on the top face: the tightest hole (+0.1 mm) is at this end
+    return new Float32Array(T);
   }
 
   /* ---------- layer slicer: real cross-sections, support volume, material and time ---------- */
@@ -1878,7 +2251,7 @@
 
   function cur() { var p = projects[curP]; return p && p.mesh ? p : null; }
   function optsFor(p) {
-    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, purpose: p.info || '' };
+    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, clear: settings.clear || 0, purpose: p.info || '' };
   }
   function toast(msg, ms) {
     var t = $('toast'); t.textContent = msg; t.hidden = false;
@@ -1948,6 +2321,7 @@
       var li = document.createElement('li'); li.textContent = 'Version ' + (i + 1) + ': ' + h.file + ', score ' + h.score + ', ' + (h.n ? h.n + ' thing' + (h.n === 1 ? '' : 's') + ' to look at' : 'no problems') + (h.now ? ' (this one)' : ''); vl.appendChild(li);
     });
     if (p.history && p.history.length && p.diffs) { var lc = document.createElement('li'); lc.textContent = p.diffs.length ? 'What changed in the shape since the last version: ' + p.diffs.join(' ') : 'The shape looks the same as the last version.'; vl.appendChild(lc); }
+    renderFit(p);
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
     $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
     var fixable = res.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) || res.specks > 0;
@@ -1964,7 +2338,7 @@
     $('printerSel').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
     $('bedX').value = settings.bed[0]; $('bedY').value = settings.bed[1]; $('bedZ').value = settings.bed[2];
     $('nozzleSel').value = String(settings.nozzle); $('materialSel').value = settings.material; $('layerSel').value = String(settings.layer);
-    $('infillSel').value = String(settings.infill || 20); $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
+    $('infillSel').value = String(settings.infill || 20); $('clearSel').value = String(settings.clear || 0); $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
     var p = cur(); if (p) $('unitSel2').value = p.units || 'mm';
   }
   function refreshProject() {
@@ -2409,6 +2783,12 @@
     if (p.history && p.history.length && p.diffs && p.diffs.length) L.push('Changed since the last version: ' + p.diffs.join(' '), '');
     L.push(r.issues.length ? 'Things to look at:' : 'No problems found.');
     r.issues.forEach(function (it, i) { L.push('', (i + 1) + '. ' + it.title + ' [' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ']', '   ' + it.text, '   How sure I am: ' + (CONFTXT[it.conf] || CONFTXT.est)[0] + '. ' + (CONFTXT[it.conf] || CONFTXT.est)[1], '   How to fix: ' + it.fix); });
+    if (r.fit) {
+      L.push('', 'How the parts fit (free-sliding gap used: ' + r.fit.c + ' mm):');
+      r.fit.pairs.forEach(function (q) { L.push('- Part ' + (q.a + 1) + ' and Part ' + (q.b + 1) + ': ' + (q.gap < -0.05 ? 'overlap ' + r2f(-q.gap) : 'closest ' + r2f(Math.max(0, q.gap))) + ' mm, ' + q.cls.label.toLowerCase()); });
+      r.fit.movers.forEach(function (v) { L.push('- ' + fitName(r.fit, v.part) + ' slides ' + r1(v.total) + ' mm ' + AXN[v.axis] + (v.min != null ? ', closest approach ' + r2f(v.min) + ' mm' : '') + v.sticks.map(function (s) { return ', sticks out ' + r1(s.mm) + ' mm ' + OUTN[s.axis][s.dir] + ' Part ' + (v.partner + 1); }).join('')); });
+      if (p.worked) compareFit(p.worked.sum, fitSummary(r.fit)).forEach(function (l) { L.push('- Compared with ' + p.worked.file + ' (worked): ' + l); });
+    }
     if (r.tips.length) { L.push('', 'Tips for this part:'); r.tips.forEach(function (t) { L.push('- ' + t.title + ': ' + t.text); }); }
     L.push('', 'These checks are estimates. Always preview the model in your slicer before printing.');
     return L.join('\n');
@@ -2439,6 +2819,11 @@
     if (p.info) h += '<h2>About the part</h2><div>' + esc(p.info) + '</div>';
     h += '<h2>' + (r.issues.length ? 'Things to look at' : 'No problems found') + '</h2>';
     r.issues.forEach(function (it) { h += '<div class="pi"><b>' + esc(it.title) + '</b> (' + (it.kind === 'err' ? 'must fix' : it.kind === 'warn' ? 'should fix' : 'worth a look') + ')<br>' + esc(it.text) + '<br><i>How sure I am: ' + esc((CONFTXT[it.conf] || CONFTXT.est)[0]) + '. ' + esc((CONFTXT[it.conf] || CONFTXT.est)[1]) + '</i><br><i>How to fix: ' + esc(it.fix) + '</i></div>'; });
+    if (r.fit) {
+      h += '<h2>How the parts fit</h2>';
+      r.fit.pairs.forEach(function (q) { h += '<div class="pi">Part ' + (q.a + 1) + ' and Part ' + (q.b + 1) + ': <b>' + esc(q.cls.label) + '</b> (' + (q.gap < -0.05 ? 'overlap ' + r2f(-q.gap) : 'closest ' + r2f(Math.max(0, q.gap))) + ' mm)</div>'; });
+      r.fit.movers.forEach(function (v) { h += '<div class="pi">' + esc(fitName(r.fit, v.part)) + ' slides ' + r1(v.total) + ' mm ' + esc(AXN[v.axis]) + (v.min != null ? ', closest approach ' + r2f(v.min) + ' mm' : '') + esc(v.sticks.map(function (s) { return ', sticks out ' + r1(s.mm) + ' mm ' + OUTN[s.axis][s.dir] + ' Part ' + (v.partner + 1); }).join('')) + '</div>'; });
+    }
     if (r.tips.length) { h += '<h2>Tips for this part</h2>'; r.tips.forEach(function (t) { h += '<div class="pi"><b>' + esc(t.title) + '</b><br>' + esc(t.text) + '</div>'; }); }
     h += '<p><small>These checks are estimates. Always preview the model in your slicer before printing.</small></p>';
     pr.innerHTML = h; setTimeout(function () { window.print(); }, 50);
@@ -2486,7 +2871,7 @@
     try {
       var list = projects.filter(function (p) { return p.cid && (p.saved || p.res); }).map(function (p) {
         var sv = p.res ? { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }) } : p.saved;
-        return { cid: p.cid, name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', history: p.history || [], saved: sv };
+        return { cid: p.cid, name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', history: p.history || [], worked: p.worked || null, saved: sv };
       });
       localStorage.setItem(GUEST_KEY, JSON.stringify(list.slice(-30)));
     } catch (e) {}
@@ -2496,7 +2881,7 @@
     try {
       (JSON.parse(localStorage.getItem(GUEST_KEY) || '[]') || []).forEach(function (d) {
         if (!d || !d.cid || !d.saved) return;
-        var p = { cid: d.cid, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: d.saved };
+        var p = { cid: d.cid, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], worked: d.worked || null, mesh: null, saved: d.saved };
         projects.push(p); restoreModel(p);
       });
     } catch (e) {}
@@ -2584,13 +2969,123 @@
     });
   }
 
+  /* ---------- the "do the parts fit and move?" card ---------- */
+  function r2f(x) { return (Math.round(x * 100) / 100).toString(); }
+  function fitChart(v, c) {
+    var W = 300, H = 64, pr = v.profile, i, mx = Math.max(2.2 * c, 0.01), t0 = pr[0][0], t1 = pr[pr.length - 1][0], sx = (W - 8) / ((t1 - t0) || 1);
+    function X(t) { return 4 + (t - t0) * sx; } function Y(g) { return H - 4 - Math.min(g, mx) / mx * (H - 10); }
+    var pts = pr.map(function (q) { return X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1); }).join(' ');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" role="img" aria-label="Gap between the sliding part and the others along its travel" style="max-width:' + W + 'px;display:block;margin:6px 0">' +
+      '<rect x="4" y="' + Y(0.5 * c) + '" width="' + (W - 8) + '" height="' + (H - 4 - Y(0.5 * c)) + '" fill="#D21404" opacity=".12"/>' +
+      '<line x1="4" x2="' + (W - 4) + '" y1="' + Y(c) + '" y2="' + Y(c) + '" stroke="#2E9E5B" stroke-dasharray="4 3"/>' +
+      '<polyline fill="none" stroke="#1B1F27" stroke-width="2" points="' + pts + '"/></svg>' +
+      '<small>Gap along the travel (left to right). Green dashed line: ' + r2f(c) + ' mm, a free-sliding gap. Red zone: too tight.</small>';
+  }
+  function renderFit(p) {
+    var res = p.res, F = res.fit, wrap = $('fitWrap'), body = $('fitBody'); body.innerHTML = '';
+    function para(txt, cls) { var d = document.createElement('p'); d.textContent = txt; if (cls) d.className = cls; body.appendChild(d); return d; }
+    wrap.hidden = false;
+    if (!F) {
+      para('This file has one part (or too many to measure), so I can’t check how parts fit together. To test a prototype, put every part in one file, placed together the way they assemble, and upload that. I’ll measure the gaps between parts and slide each moving part along its path.');
+    } else {
+      if (!F.pairs.length) para('Your file has ' + F.parts.length + ' separate parts, but none are within 3 mm of each other, so there is no fit to check.');
+      else para('Your file has ' + F.parts.length + ' parts. I measured the gaps between them and slid each moving part along its path. A gap of ' + r2f(F.c) + ' mm counts as a free-sliding fit' + (F.auto ? ' (a typical value; print the fit test piece to set it for your printer).' : ' (your setting).'));
+      if (F.partial) para('The model was big, so I stopped measuring early. Some checks may be missing.', 'fitnote');
+      F.pairs.forEach(function (q) {
+        var d = document.createElement('div'); d.className = 'fitrow';
+        d.innerHTML = '<span class="chip ' + q.cls.tone + '"></span><span><b></b><small></small></span>';
+        d.querySelector('.chip').textContent = q.cls.label;
+        d.querySelector('b').textContent = 'Part ' + (q.a + 1) + ' and Part ' + (q.b + 1) + ': ' + (q.gap < -0.05 ? 'overlap ' + r2f(-q.gap) + ' mm' : q.gap < 0.03 ? 'touching' : 'closest ' + r2f(q.gap) + ' mm');
+        d.querySelector('small').textContent = FITTXT[q.cls.k];
+        body.appendChild(d);
+      });
+      F.movers.forEach(function (v) {
+        var d = document.createElement('div'); d.className = 'fitmove';
+        var h = document.createElement('b'); h.textContent = fitName(F, v.part) + ' can slide ' + r1(v.total) + ' mm ' + AXN[v.axis] + ' (' + r1(v.neg) + ' mm one way, ' + r1(v.pos) + ' mm the other).'; d.appendChild(h);
+        if (v.min != null) {
+          var cl = fitClass(v.min, F.c), t = document.createElement('div');
+          t.textContent = 'Closest it gets to another part while sliding: ' + r2f(v.min) + ' mm (' + cl.label.toLowerCase() + ')' + (v.tightFrac > 0.02 ? ', and it stays under ' + r2f(F.c * 0.5) + ' mm for about ' + Math.round(v.tightFrac * 100) + '% of the travel' : '') + '.'; d.appendChild(t);
+        }
+        v.sticks.forEach(function (s) { var t2 = document.createElement('div'); t2.textContent = 'It sticks out ' + r1(s.mm) + ' mm ' + OUTN[s.axis][s.dir] + ' Part ' + (v.partner + 1) + '.'; d.appendChild(t2); });
+        if (v.profile.length > 3) { var ch = document.createElement('div'); ch.innerHTML = fitChart(v, F.c); d.appendChild(ch); }
+        body.appendChild(d);
+      });
+      if (!F.movers.length && F.parts.length > 1) para('I didn’t find a part that slides inside the others. If something should move, check that it is placed inside its slot or tube in the file.');
+    }
+    var rb = document.createElement('div'); rb.className = 'rowbtns';
+    rb.innerHTML = '<button class="btn small" type="button" id="workedBtn" title="Remember how this version measures, so later versions can be compared with it">This one worked</button><button class="btn small alt" type="button" id="workedPick" title="Choose a file of a version that worked and see how this one differs">Compare with a file that worked</button>';
+    body.appendChild(rb);
+    $('workedBtn').disabled = !F;
+    $('workedBtn').addEventListener('click', function () { if (!p.res || !p.res.fit) return; p.worked = { file: p.file, sum: fitSummary(p.res.fit) }; persist(p); cloudSave(p); renderFit(p); toast('Saved. When you upload a new version I’ll show what changed compared with this one.'); });
+    $('workedPick').addEventListener('click', function () { $('workedFile').click(); });
+    if (p.worked) {
+      var C = F ? fitSummary(F) : null, lines = C ? compareFit(p.worked.sum, C) : [], cmp = document.createElement('div'); cmp.className = 'fitcmp';
+      var hh = document.createElement('b'); hh.textContent = 'Compared with “' + p.worked.file + '”, which worked:'; cmp.appendChild(hh);
+      if (!C) lines = ['This file has no separate parts to compare.'];
+      if (!lines.length) lines = ['The sliding parts measure the same.'];
+      lines.forEach(function (l) { var t = document.createElement('div'); t.textContent = l; cmp.appendChild(t); });
+      body.appendChild(cmp);
+    }
+  }
+  $('workedFile').addEventListener('change', function () {
+    var p = cur(), f = this.files[0]; this.value = ''; if (!p || !f) return;
+    if (!OK.test(f.name)) { toast('Please choose an STL, 3MF or OBJ file.'); return; }
+    readMesh(f).then(function (m2) {
+      if (!m2 || m2.length < 9) { toast('I couldn’t read that file.'); return; }
+      var F2 = null; try { F2 = fitAnalyze(m2, Math.floor(m2.length / 9), { perMm: 1 / MM[m2.units || p.units || 'mm'], material: settings.material, clear: settings.clear || 0, budget: 7000 }); } catch (e) {}
+      if (!F2) { toast('I couldn’t find two or more separate parts in that file, so there is nothing to compare.'); return; }
+      p.worked = { file: f.name, sum: fitSummary(F2) }; persist(p); cloudSave(p); if (p.res) renderFit(p);
+      toast('Compared with “' + f.name + '”.');
+    }, function () { toast('I couldn’t read that file.'); });
+  });
+  $('clearSel').addEventListener('change', function () { settings.clear = +this.value || 0; saveSettings(); recheck(); });
+  $('fitTestBtn').addEventListener('click', function () {
+    save(stlBlob(makeFitTest()), 'meshcheck-fit-test.stl');
+    toast('Print it flat. Try a peg in each hole: the left hole (next to the small round bump) is 0.1 mm bigger than the peg on every side, then 0.2, 0.3, 0.4 and 0.5. Pick the first hole where the peg slides freely without wobbling, then set “Free-sliding gap” in Print settings.', 15000);
+  });
+
+  // Tiger: what to change when a prototype does not work
+  function fitAdvice(q, p, r, has) {
+    var F = r.fit, c = F ? F.c : (settings.clear || (r.resin ? 0.15 : 0.3)), out = [], bad = false;
+    var stuck = has('stuck', 'jam', 'won’t move', 'wont move', 'doesn’t move', 'doesnt move', 'not moving', 'hard to move', 'friction', 'fused', 'bind', 'won’t slide', 'wont slide', 'doesn’t slide', 'doesnt slide', 'tight');
+    var loose = has('loose', 'wobble', 'rattle', 'falls out', 'sloppy', 'slop');
+    var reach = has('stick out', 'sticks out', 'protrud', 'too short', 'too low', 'can’t reach', 'cant reach', 'button', 'can’t press', 'cant press', 'can’t push', 'cant push');
+    var any = stuck || loose || reach || has('prototype', 'doesn’t work', 'doesnt work', 'not working', 'isn’t working', 'broken', 'slider', 'slide', 'sliding', 'assembl', 'tolerance', 'clearance', 'how well', 'does it work', 'will it work', 'function');
+    if (!any) return null;
+    if (!F) return 'I can only check how parts fit and move when the file has two or more separate parts, like a barrel, a slider and a cap. Put every part of the prototype in one file, placed together the way they assemble, and upload that. Then tell me what you want it to do and what goes wrong (for example “the slider gets stuck” or “the button doesn’t stick out”) and I’ll tell you what to change.';
+    var movers = F.movers, tight = movers.filter(function (v) { return v.min != null && v.min < c; }), worst = tight.sort(function (a, b) { return a.min - b.min; })[0];
+    var over = F.pairs.filter(function (x) { return x.overlap && x.depth >= 0.2; });
+    if (stuck || (!loose && !reach)) {
+      if (over.length) { bad = true; out.push(fitName(F, over[0].a) + ' and ' + fitName(F, over[0].b) + ' overlap by about ' + r2f(over[0].depth) + ' mm, so the printer melts them into one lump and they can’t move. Pull them apart or trim one until there is a gap of about ' + r2f(c) + ' mm.'); }
+      if (worst) { bad = true; out.push(fitName(F, worst.part) + ' slides ' + r1(worst.total) + ' mm but gets as close as ' + r2f(worst.min) + ' mm to ' + (worst.minWho >= 0 ? 'Part ' + (worst.minWho + 1) : 'another part') + (worst.tightFrac > 0.95 ? ' along its whole travel.' : ', and ' + Math.round(worst.tightFrac * 100) + '% of its travel is that tight.') + ' Plastic spreads about 0.1 to 0.2 mm, so it will probably fuse or bind. Make the slot or tube wider (or the sliding part slimmer) by about ' + r2f(c - worst.min) + ' mm on each side so the gap is at least ' + r2f(c) + ' mm.'); }
+      else if (movers.length && !over.length) out.push('I don’t see a squeeze point. The closest it gets while sliding is ' + r2f(Math.min.apply(null, movers.map(function (v) { return v.min == null ? 9 : v.min; }))) + ' mm, which should slide. If yours still sticks, the cause is probably the print itself: the bottom layers squishing out (add a small chamfer to bottom edges), rough layer lines on the sliding faces (sand them or print the sliding faces upright), or stringing inside the gap.');
+    }
+    if (loose) {
+      var lo = movers.filter(function (v) { return v.min != null && v.min > 2 * c; })[0];
+      out.push(lo ? fitName(F, lo.part) + ' keeps at least ' + r2f(lo.min) + ' mm of room while it slides, which is more than twice the ' + r2f(c) + ' mm free-sliding gap, so it will wobble. Make the gap about ' + r2f(c) + ' mm, or add a small bump on one side so it clicks into place.' : 'The closest gaps I measured are near ' + r2f(c) + ' mm or tighter, so the looseness may come from the print (worn layers, a loose first layer) rather than the design. If you want less play, reduce the gap by 0.05 to 0.1 mm.');
+    }
+    if (reach) {
+      var st = movers.filter(function (v) { return v.sticks.length; });
+      if (st.length) st.forEach(function (v) { v.sticks.forEach(function (s) { out.push(fitName(F, v.part) + ' sticks out ' + r1(s.mm) + ' mm ' + OUTN[s.axis][s.dir] + ' Part ' + (v.partner + 1) + '. If your finger or the part it pushes needs more, make the part taller by the difference and keep the gap to the slot the same.'); }); });
+      else out.push('No sliding part sticks out past the others, so a button or handle would not be reachable. Make the part taller so it passes through the slot and sits above the surface.');
+    }
+    if (p.worked) {
+      var lines = compareFit(p.worked.sum, fitSummary(F));
+      out.push(lines.length ? 'Compared with “' + p.worked.file + '”, which worked: ' + lines.join(' ') : 'It measures the same as “' + p.worked.file + '”, the version that worked, so the problem may be in the print rather than the shape.');
+    }
+    if (!out.length) out.push(movers.length ? 'The sliding part travels ' + r1(movers[0].total) + ' mm and stays at least ' + r2f(movers[0].min == null ? 0 : movers[0].min) + ' mm from the other parts, which is a fit that should work.' : 'I measured the gaps between your parts and found nothing alarming.');
+    if (!stuck && !loose && !reach) out.push('Tell me what it should do and what it does instead (for example “the slider gets stuck halfway” or “the button doesn’t stick out far enough”), and I’ll narrow it down.');
+    else if (stuck || loose) out.push('Printing the fit test piece (Print settings) tells you the exact gap your printer needs.');
+    return out.join(' ');
+  }
+
   /* ---------- Tiger AI answers (rules based, from the real results) ---------- */
   function tigerAnswer(q) {
     q = q.toLowerCase();
     var p = cur(), r = p && p.res, has = function () { for (var i = 0; i < arguments.length; i++) if (q.indexOf(arguments[i]) >= 0) return true; return false; };
     var issue = function (id) { return r && issueById(p, id); };
     if (has('hello', 'hi ', 'hey') && q.length < 12) return 'Hi! Ask me about your model, your settings, or how to fix something I found.';
-    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL, 3MF or OBJ for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs and long bridges, sharp points, small holes, sealed pockets, parts too close together, bed contact, tall thin shapes and whether it fits your printer. I can also repair many problems with the “Fix it for me” button. Ask me about any of them, or what to fix first.';
+    if (has('what can you', 'help', 'how do you', 'what do you')) return 'I check your STL, 3MF or OBJ for holes, flipped or overlapping faces, thin walls, details too small for your nozzle, overhangs and long bridges, sharp points, small holes, sealed pockets, parts too close together, bed contact, tall thin shapes and whether it fits your printer. If your file has several parts, like a barrel and a slider, I also measure the gaps between them (tight, snug or loose), slide the moving part along its path, and tell you what to change when it gets stuck, wobbles or doesn’t stick out far enough. I can also repair many problems with the “Fix it for me” button. Ask me about any of them, or what to fix first.';
     if (has('file', 'format', 'obj', 'step', 'upload', 'support stl')) return 'I can read STL (binary or text), 3MF and OBJ files. Export your design from your modeling program as STL, 3MF or OBJ, then drop it on the home page or press the + button.';
     if (has('unit', 'inch', 'millimet', 'scale', 'too big', 'too small')) return 'STL files don’t say what units they use, so I assume millimeters unless you change it in Print settings (3MF files tell me themselves). If your sizes look off by 25 or 10 times, switch the units.';
     if (has('nozzle')) return 'Your nozzle is set to ' + settings.nozzle + ' mm. I treat anything smaller than that as too small to print, and walls under ' + r1(settings.nozzle * 3) + ' mm as thin. Change it in Print settings if you use a different one.';
@@ -2598,6 +3093,7 @@
     if (!p) return 'Upload a model first (the + button) and I’ll check it for you!';
     if (p.unreadable) return 'I couldn’t read that file, so I can’t check it. Try exporting it again as binary STL, 3MF or OBJ.';
     if (!r) return 'Give me a second, I’m still checking your model.';
+    var fa = fitAdvice(q, p, r, has); if (fa) return fa;
     if (has('score', 'ready', 'good', 'ok ', 'okay', 'print it', 'safe')) return 'Your score is ' + r.score + '/100: ' + r.verdict.toLowerCase() + '. ' + (r.issues.length ? 'Start with “' + r.issues[0].title + '”.' : 'I found nothing wrong, but always preview it in your slicer too.');
     if (has('fix first', 'first', 'priority', 'what should', 'fix', 'problem', 'wrong', 'issue')) return r.issues.length ? 'Start with “' + r.issues[0].title + '”. ' + r.issues[0].fix : 'I didn’t find any problems in “' + p.name + '”.';
     if (has('fix it', 'repair', 'auto')) return r.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) ? 'Press “Fix it for me” in the panel. I’ll close holes, flip inside-out faces, and remove duplicate or empty faces, then check again. You can undo it.' : 'The “Fix it for me” button repairs holes, inside-out faces, duplicates and loose specks. I don’t see any of those in your model. Things like thin walls need a change in your modeling program.';
@@ -2658,7 +3154,7 @@
     if (!acct || !cloud || !p || !(p.res || p.saved)) return;
     p.cid = p.cid || newCid();
     if (p.res) p.saved = { score: p.res.score, n: p.res.issues.length, titles: p.res.issues.slice(0, 8).map(function (i) { return i.title; }), verdict: p.res.verdict };
-    cloud.saveProject(acct.uid, p.cid, { name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', score: p.saved.score, n: p.saved.n, titles: p.saved.titles, verdict: p.saved.verdict || '', history: p.history || [], updated: Date.now() }).catch(function () {});
+    cloud.saveProject(acct.uid, p.cid, { name: p.name, file: p.file, info: p.info || '', units: p.units || 'mm', when: p.when || '', score: p.saved.score, n: p.saved.n, titles: p.saved.titles, verdict: p.saved.verdict || '', history: p.history || [], worked: p.worked || null, updated: Date.now() }).catch(function () {});
   }
   window.mcCloudSave = cloudSave;
   var setTimer = null;
@@ -2681,7 +3177,7 @@
       var guestKeep = projects.slice();
       data.projects.forEach(function (d) {
         if (guestKeep.some(function (g) { return g.cid === d.id; })) return;
-        var np = { cid: d.id, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], mesh: null, saved: { score: d.score, n: d.n, titles: d.titles || [], verdict: d.verdict || '' } };
+        var np = { cid: d.id, name: d.name, file: d.file, info: d.info, units: d.units, when: d.when, history: d.history || [], worked: d.worked || null, mesh: null, saved: { score: d.score, n: d.n, titles: d.titles || [], verdict: d.verdict || '' } };
         projects.push(np); restoreModel(np);
       });
       guestKeep.forEach(function (p) { if (!have[p.cid]) { if (!p.cid) p.cid = newCid(); if (p.mesh) persist(p); cloudSave(p); } });
