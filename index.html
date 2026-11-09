@@ -109,7 +109,7 @@
   .details {
     background: var(--box); border-radius: 12px;
     padding: clamp(24px, 4vw, 56px);
-    display: flex; flex-direction: column; gap: 24px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
   }
   .details p { font-family: var(--arial); margin: 0; font-size: 20px; line-height: 1.5; max-width: 80ch; }
 
@@ -254,15 +254,6 @@
   .projname::placeholder { color: rgba(27, 31, 39, .5); }
   .popup p.note { margin: 0 0 6px; }
 
-  /* home: example models */
-  .gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-  .gcard {
-    background: var(--white); border: 2px solid var(--ink); border-radius: 12px; overflow: hidden;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  .gcard canvas { width: 100%; height: 190px; display: block; }
-  .gcard span { font-family: var(--garamond); font-size: 22px; font-weight: 700; padding: 0 0 12px; }
-
   /* My Project */
   .projview { padding: 0 clamp(16px, 5.5vw, 80px) 24px; }
   .stagebox {
@@ -389,7 +380,6 @@
   .proj-name-line { margin: 0; font-size: 22px; }
   label.btn { display: inline-block; }
 
-  @media (max-width: 900px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 760px) {
     .profbtn { position: static; transform: none; margin: 8px 0 0; }
     .chat { right: 16px; bottom: 164px; max-height: calc(100dvh - 190px); }
@@ -539,30 +529,11 @@
     </div>
   </div>
 
-  <section class="gallery" aria-label="Example 3D models">
-    <div class="gcard"><canvas id="g1" aria-hidden="true"></canvas><span>Block</span></div>
-    <div class="gcard"><canvas id="g2" aria-hidden="true"></canvas><span>Peg</span></div>
-    <div class="gcard"><canvas id="g3" aria-hidden="true"></canvas><span>Pyramid</span></div>
-    <div class="gcard"><canvas id="g4" aria-hidden="true"></canvas><span>Ring</span></div>
-  </section>
-
   <section class="details">
     <p>MeshCheck is a website where you can safely check your 3D model to catch potential problems before a model is sent to a 3D printer. Users can upload an STL, 3MF or OBJ file that they have exported from their 3D modeling software, provide information about what the part is, what it is used for, and how it is expected to function. MeshCheck then analyzes the model’s geometry and printing characteristics to identify issues such as weak areas, unsupported features, non-manifold geometry, difficult-to-print details, and other potential problems. Understanding the purpose of the part allows MeshCheck to provide better feedback.</p>
     <p>The goal of MeshCheck is to reduce failed prints and unnecessary wastes of filament and design iterations. Instead of discovering a problem after spending hours waiting for a prototype to be finished printing, MeshCheck gives all of the 3D printing results to you instantly, and also gives you feedback on improvements in your design. We hope to increase the chances that your first print is successful. This allows everyone to spend less time troubleshooting and more time developing and testing their prototypes.</p>
   </section>
 
-  <section class="checks" aria-label="What MeshCheck checks">
-    <h2>How it works</h2>
-    <ol class="steps3">
-      <li><b>1. Upload</b>Drop an STL, 3MF or OBJ file exported from your 3D modeling program.</li>
-      <li><b>2. Review</b>See a score, the exact trouble spots in color, and plain-English advice.</li>
-      <li><b>3. Fix and print</b>Repair many problems with one click, then download the fixed file.</li>
-    </ol>
-    <h2>What it looks for</h2>
-    <ul class="chips">
-      <li>Holes and gaps</li><li>Inside-out faces</li><li>Overlapping geometry</li><li>Thin walls</li><li>Details too small for your nozzle</li><li>Overhangs and long bridges</li><li>Sharp points</li><li>Small holes that print too tight</li><li>Sealed hollow pockets</li><li>Parts too close together</li><li>How parts fit and slide (tight, snug or loose)</li><li>Whether a moving part sticks out or gets stuck</li><li>Fit on your printer</li><li>Tall, narrow shapes</li><li>Weak bed contact</li><li>Time, weight and cost estimates</li>
-    </ul>
-  </section>
   <footer class="foot">
     <span>Your 3D files are checked in your browser and never uploaded. If you sign in, only your scores and settings are saved.</span>
     <span><a href="https://github.com/laurenlliu/meshcheck/issues" target="_blank" rel="noopener">Send feedback or report a bug</a></span>
@@ -3252,14 +3223,10 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     acct.img = URL.createObjectURL(f); renderAvatars(); this.value = '';
   });
 
-  /* ---------- tutorial + home gallery ---------- */
+  /* ---------- tutorial ---------- */
   var tdlg = $('tutorialDialog');
   $('tutorialBtn').addEventListener('click', function () { tdlg.showModal(); });
   $('closeTut').addEventListener('click', function () { tdlg.close(); });
-  [['g1', boxMesh(40, 30, 28), 0.3], ['g2', cylMesh(16, 44, 36), 1.4], ['g3', pyramidMesh(40, 42), 2.4], ['g4', torusMesh(22, 8, 40, 16), 3.4]].forEach(function (g) {
-    var gv = new Viewer($(g[0]), { plate: false, auto: true, span: 150, yaw: g[2], pitch: 0.55 });
-    gv.setMesh(g[1]);
-  });
 
   renderAvatars(); renderProfile(); setView('home');
 })();
