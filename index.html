@@ -1081,7 +1081,7 @@
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
   // how much to trust each finding: exact = measured directly on the mesh, good = reliable but depends on the slicer, est = a sampled or rule-of-thumb estimate
-  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', collide: 'good', tightfit: 'est', loosefit: 'est', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est', snapthin: 'est', snapnomate: 'exact' };
+  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', collide: 'good', tightfit: 'est', loosefit: 'est', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est', flipped: 'exact', scale: 'exact', snapthin: 'est', snapnomate: 'exact' };
   var CONFTXT = {
     exact: ['Exact check', 'I measured this directly on your model, so you can rely on it.'],
     good: ['Reliable', 'I measured this on your model, but a slicer may judge borderline cases differently. Check it in your slicer preview.'],
@@ -1097,6 +1097,7 @@
     var t = (text || '').toLowerCase();
     return {
       snap: /\b(snap|snaps|snapping|latch|latches|latching|clip|clips|click|hook|hooks|catch|catches|lock|locks|locking|shut)\b/.test(t),
+      gapOk: /(not touching|suspended|on purpose|intentional|intentionally|deliberate|deliberately|floating|loose on purpose|meant to be (apart|separate))/.test(t),
       move: /\b(move|moves|moving|slide|slides|sliding|rotate|rotates|spin|spins|spinning|hinge|swing|turn|turns|push|pushes)\b/.test(t)
     };
   }
@@ -1180,14 +1181,14 @@
       if (seen.has(key)) { dup.push(t); skipT[t] = 1; } else seen.add(key);
     }
 
-    var edges = new Map(), firstTri = new Map(), knife = [], a, b;
+    var edges = new Map(), firstTri = new Map(), knife = [], a, b, dirOf = new Map(), flipE = 0, flipTris = [];
     function ekey(x, y) { return x < y ? x * 67108864 + y : y * 67108864 + x; }
     for (t = 0; t < n; t++) for (e = 0; e < 3; e++) {
       if (skipT[t]) continue;
       a = vid[t * 3 + e]; b = vid[t * 3 + (e + 1) % 3]; if (a === b) continue;
       key = ekey(a, b); var ec = edges.get(key) || 0; edges.set(key, ec + 1);
-      if (ec === 0) firstTri.set(key, t);
-      else if (ec === 1) { var f0 = firstTri.get(key); if (area[t] > 0 && area[f0] > 0 && nxA[t] * nxA[f0] + nyA[t] * nyA[f0] + nz[t] * nz[f0] < -0.866) knife.push(t, f0); }
+      if (ec === 0) { firstTri.set(key, t); dirOf.set(key, a < b ? 1 : -1); }
+      else if (ec === 1) { if (dirOf.get(key) === (a < b ? 1 : -1)) { flipE++; flipTris.push(t, firstTri.get(key)); } var f0 = firstTri.get(key); if (area[t] > 0 && area[f0] > 0 && nxA[t] * nxA[f0] + nyA[t] * nyA[f0] + nz[t] * nz[f0] < -0.866) knife.push(t, f0); }
     }
     var open = 0, multi = 0, holeTris = [], multiTris = [];
     edges.forEach(function (c) { if (c === 1) open++; else if (c > 2) multi++; });
@@ -1227,12 +1228,26 @@
         'Every face of this model points inward, so a slicer may think the inside is the outside and print nothing, or print it hollow.',
         'Press “Fix it for me” to flip every face. In Blender use Mesh > Normals > Recalculate Outside.', null);
     }
+    if (flipE && !(closed && vol < 0 && flipE > edges.size * 0.9)) {
+      add('flipped', 'warn', 1, 'Some faces point the wrong way', 'Some faces are flipped',
+        flipE + ' edge' + (flipE === 1 ? ' is' : 's are') + ' shared by faces that point in opposite directions (shown in red), so parts of the surface are turned inside out. A slicer can mistake inside for outside here and leave gaps or print nothing in that area.',
+        'Press “Fix it for me” to turn them the right way. In Blender use Mesh > Normals > Recalculate Outside.', flipTris);
+    }
     if (degen.length || dup.length) {
       add('junk', (degen.length + dup.length) > n * 0.02 ? 'warn' : 'info', (degen.length + dup.length) > n * 0.02 ? 1 : 2, 'Duplicate or empty faces', 'Duplicate or empty faces',
         'There are ' + degen.length + ' zero-size and ' + dup.length + ' duplicated faces. They add no shape but can confuse slicers and make the file larger.',
         'Press “Fix it for me” to remove them, or use Remove Duplicates / Merge by Distance in your modeling tool.', degen.concat(dup));
     }
 
+    function unitGuess(X0, Y0, Z0) {   // what the size would be if the file were in another unit
+      var cu = o.unitCode || 'mm', found = [];
+      ['mm', 'cm', 'in', 'm'].forEach(function (uk) {
+        if (uk === cu) return;
+        var f = MM[uk] / MM[cu], a = X0 * f, b2 = Y0 * f, c2 = Z0 * f, mx = Math.max(a, b2, c2);
+        if (mx >= 10 && mx <= 400) found.push('in ' + UNAME[uk] + ' it would be ' + r1(a) + ' × ' + r1(b2) + ' × ' + r1(c2) + ' mm');
+      });
+      return found.length ? ' If your file is really in another unit: ' + found.slice(0, 2).join('; ') + '. Change “Model units” under About your model and I will recheck it.' : '';
+    }
     // sizes in millimeters
     var X = sx / mmU, Y = sy / mmU, Z = zmax / mmU, volMm = Math.abs(vol) / (mmU * mmU * mmU), areaMm = total / (mmU * mmU);
     res.metrics = { x: X, y: Y, z: Z, tris: n, volume: volMm, area: areaMm };
@@ -1245,16 +1260,17 @@
         'Rotate it 90° in your slicer, or pick a different printer in Print settings.', null);
     } else {
       res.metrics.fits = 'no';
-      var fitsOn = [], hint = '', cu = o.unitCode || 'mm';
+      var fitsOn = [], hint = unitGuess(X, Y, Z);
       Object.keys(PRINTERS).forEach(function (pk) { var bb = PRINTERS[pk].bed; if (bb && ((X <= bb[0] && Y <= bb[1] && Z <= bb[2]) || (Y <= bb[0] && X <= bb[1] && Z <= bb[2]))) fitsOn.push(PRINTERS[pk].name.replace(/ \(.*/, '')); });
-      ['mm', 'cm', 'in'].forEach(function (uk) {
-        if (hint || uk === cu) return;
-        var f = MM[uk] / MM[cu], a = X * f, b2 = Y * f, c2 = Z * f;
-        if (Math.max(a, b2, c2) >= 5 && Math.max(a, b2, c2) <= 400 && a <= 400 && b2 <= 400 && c2 <= 400) hint = ' If your file is really in ' + UNAME[uk] + ', the model is ' + r1(a) + ' × ' + r1(b2) + ' × ' + r1(c2) + ' mm. Change “Model units” under About your model and I will recheck it.';
-      });
       add('fit', 'err', 1, 'Too big for your printer', 'Larger than your printer',
         'The model is ' + r1(X) + ' × ' + r1(Y) + ' × ' + r1(Z) + ' mm, but your printer only fits ' + bed.join(' × ') + ' mm.' + hint + (fitsOn.length ? ' It would fit on: ' + fitsOn.slice(0, 4).join(', ') + '.' : ''),
         'Pick your printer or units under About your model, scale the model down, or cut it into pieces that fit. If the size looks wrong, change the units.', null);
+    }
+
+    if (Math.max(X, Y, Z) > 0 && Math.max(X, Y, Z) < 5 && unitGuess(X, Y, Z)) {
+      add('scale', 'warn', 1, 'Model is very small', 'Very small model',
+        'The model is only ' + (Math.round(X * 100) / 100) + ' × ' + (Math.round(Y * 100) / 100) + ' × ' + (Math.round(Z * 100) / 100) + ' mm, smaller than a grain of rice.' + unitGuess(X, Y, Z),
+        'If the size is wrong, change “Model units” under About your model. If it really is that small, a resin printer is the only one that can print it.', null);
     }
 
     // separate pieces, found before the ray tests so we can tell "another part" from "the same part"
@@ -1502,8 +1518,9 @@
         'Make them at least ' + r1(thinThr) + ' mm thick' + (resin ? '' : ', about three lines of plastic from a ' + noz + ' mm nozzle') + '. In your CAD program, increase the wall or shell thickness. Turn on the Thickness view to see every wall.', thin.concat(pT));
     }
     if (closeA.length >= 3 && closeA.length >= tested * 0.01) {
-      add('closeparts', 'warn', 1, 'Parts too close together', 'Parts almost touching',
-        'Some separate parts sit only about ' + Math.max(0.05, r2(closeMin)) + ' mm apart, shown in red. Printed plastic spreads a little, so parts this close can fuse into one lump.',
+      var gapOk = intentOf(o.purpose).gapOk;
+      add('closeparts', gapOk ? 'info' : 'warn', 1, 'Parts too close together', gapOk ? 'Close parts (you said on purpose)' : 'Parts almost touching',
+        'Some separate parts sit only about ' + Math.max(0.05, r2(closeMin)) + ' mm apart, shown in red. Printed plastic spreads a little, so parts this close can fuse into one lump.' + (gapOk ? ' You said a gap or separation is intentional, so this is only a note. Keep at least 0.3 mm wherever the parts must not join.' : ''),
         'Leave at least 0.2 to 0.4 mm between parts that must stay separate (0.3 mm or more for parts that must move), or let them touch on purpose and join them in your CAD program.', closeA.concat(closeB));
     }
     var holeNote = holesA.length >= 6 && holesA.length >= tested * 0.02;
@@ -1567,10 +1584,27 @@
     var intent = intentOf(o.purpose);
     if (intent.snap) {
       res.tips.push({ title: 'You described a snap-fit or latch', text: 'MeshCheck can’t test spring force, so I check what I can measure: how thin the hooks and tabs are, and whether the mating parts are placed close enough to measure. Make a hook or tab at least 2 mm thick, add a fillet where it joins the body, print it so the layers run along the tab (not across it), and try PETG, which bends more than PLA before it snaps. Print the latch alone first as a quick test.' });
+      // keep only thin spots that belong to small, separate features (hooks and tabs); a large thin shell is not a latch
+      var tabT = [], tabP = [];
       if (under2.length >= 3) {
+        var tp = new Map(), tf = function (x) { while (tp.get(x) !== x) { tp.set(x, tp.get(tp.get(x))); x = tp.get(x); } return x; };
+        under2.forEach(function (tt) { for (var kk = 0; kk < 3; kk++) if (!tp.has(vid[tt * 3 + kk])) tp.set(vid[tt * 3 + kk], vid[tt * 3 + kk]); });
+        under2.forEach(function (tt) { var r0 = tf(vid[tt * 3]); for (var kk = 1; kk < 3; kk++) tp.set(tf(vid[tt * 3 + kk]), r0); });
+        var comps = new Map();
+        under2.forEach(function (tt, ui) {
+          var r = tf(vid[tt * 3]), cc = comps.get(r); if (!cc) { cc = { lo: [1e30, 1e30, 1e30], hi: [-1e30, -1e30, -1e30], t: [], p: [] }; comps.set(r, cc); }
+          cc.t.push(tt); cc.p.push(p2[ui]);
+          for (var kk = 0; kk < 3; kk++) for (var dd = 0; dd < 3; dd++) { var cv = m[tt * 9 + kk * 3 + dd]; if (cv < cc.lo[dd]) cc.lo[dd] = cv; if (cv > cc.hi[dd]) cc.hi[dd] = cv; }
+        });
+        comps.forEach(function (cc) {
+          var ext = Math.max(cc.hi[0] - cc.lo[0], cc.hi[1] - cc.lo[1], cc.hi[2] - cc.lo[2]) / mmU;
+          if (ext <= 20) { tabT = tabT.concat(cc.t); tabP = tabP.concat(cc.p); }
+        });
+      }
+      if (tabT.length >= 3) {
         add('snapthin', 'warn', 1, 'Snap or latch parts look too thin', 'Latches may snap off',
-          'You said parts should snap or latch together. About ' + under2.length + ' sampled spots are under 2 mm thick, shown in red. Small hooks and tabs this thin usually snap off the first time they flex, especially when the layers run across them.',
-          'Thicken hooks and tabs to at least 2 mm, add a rounded fillet where they join the body, make the tab longer so it bends over a longer distance, and print it so the layers run along the tab.', under2.concat(p2));
+          'You said parts should snap or latch together. I found small hooks or tabs under 2 mm thick (shown in red). Features this small and thin usually snap off the first time they flex, especially when the layers run across them.',
+          'Thicken hooks and tabs to at least 2 mm, add a rounded fillet where they join the body, make the tab longer so it bends over a longer distance, and print it so the layers run along the tab.', tabT.concat(tabP));
       }
       if (bodies > 1 && res.fit && res.fit.pairs && res.fit.pairs.length === 0) {
         add('snapnomate', 'info', 2, 'Latching parts are not placed together', 'Latch halves are apart',
@@ -2337,7 +2371,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
       li.appendChild(b); ul.appendChild(li);
     });
     var M = res.metrics, rows = [
-      ['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm' + sizeInUnits(M)],
+      ['Size', sz(M.x) + ' × ' + sz(M.y) + ' × ' + sz(M.z) + ' mm' + sizeInUnits(M)],
       ['Volume', r1(M.volume / 1000) + ' cm³'],
       ['Surface', r1(M.area / 100) + ' cm²'],
       ['Triangles', M.tris.toLocaleString()],
@@ -2360,7 +2394,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     renderFit(p);
     $('orientBtn').textContent = p.orig ? 'Undo orientation' : 'Best orientation';
     $('autoFixBtn').textContent = p.unfixed ? 'Undo fix' : 'Fix it for me';
-    var fixable = res.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk'; }) || res.specks > 0;
+    var fixable = res.issues.some(function (i) { return i.id === 'holes' || i.id === 'inverted' || i.id === 'junk' || i.id === 'flipped'; }) || res.specks > 0;
     $('autoFixBtn').disabled = !p.unfixed && !fixable;
     $('autoFixBtn').title = p.unfixed ? 'Go back to the model from your file' : fixable ? 'Closes holes, flips inside-out faces, removes duplicate faces and loose specks. You can undo it.' : 'Nothing here can be repaired automatically. Other problems need a change in your modeling program.';
     $('fixBtn').disabled = !p.mesh;
@@ -2377,6 +2411,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     $('infillSel').value = String(settings.infill || 20); $('clearSel').value = String(settings.clear || 0); $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
     var p = cur(); if (p) { $('unitSel2').value = p.units || 'mm'; $('unitQ').value = p.units || 'mm'; }
   }
+  function sz(v) { return v < 10 ? String(Math.round(v * 100) / 100) : String(r1(v)); }
   function sizeInUnits(M) {   // also show the size in the units the file was saved in
     var pp = cur(), u = pp && pp.units || 'mm'; if (u === 'mm') return '';
     var f = 1 / MM[u], dp = u === 'in' || u === 'ft' || u === 'm' ? 2 : 1, q = function (v) { return (Math.round(v * f * Math.pow(10, dp)) / Math.pow(10, dp)); };
