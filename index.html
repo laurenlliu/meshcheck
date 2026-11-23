@@ -196,6 +196,10 @@
     padding: 16px; font-size: 22px; line-height: 1.4; min-height: 150px;
   }
   .unitsel { display: flex; align-items: center; gap: 8px; font-size: 19px; font-weight: 600; margin: 0 !important; }
+  .dlgrow { margin: 10px 0 4px !important; }
+  .quick { display: grid; gap: 6px; margin: 0 0 10px; }
+  .quick label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 16px; }
+  .quick select { font: 600 15px var(--garamond); color: var(--ink); background: var(--white); border: 2px solid var(--ink); border-radius: 4px; padding: 4px 6px; max-width: 62%; }
   .unitsel select { font: 600 18px var(--garamond); color: var(--ink); background: var(--white); border: 2px solid var(--ink); border-radius: 4px; padding: 6px 8px; cursor: pointer; }
   .unitbox { position: absolute; left: 154px; bottom: 30px; z-index: 2; background: var(--white); border: 2px solid var(--ink); border-radius: 8px; padding: 6px 10px; }
   .unitbox select { border: 0; padding: 2px; }
@@ -550,10 +554,15 @@
       <div id="fitWrap" hidden><h3>Do the parts fit and move?</h3><div id="fitBody"></div></div>
       <div id="verWrap" hidden><h3>Versions</h3><ol class="vers" id="verList"></ol></div>
       <h3>About your model</h3>
+      <div class="quick">
+        <label>Printer <select id="printerQ" aria-label="Your 3D printer"></select></label>
+        <label>Model units <select id="unitQ" aria-label="Units the file was saved in"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
+      </div>
       <dl class="info" id="infoList"></dl>
       <details class="settings" id="settingsBox">
         <summary>Print settings</summary>
         <label>Printer <select id="printerSel"></select></label>
+        <label>Supports <select id="supportSel" aria-label="Whether your slicer adds supports automatically"><option value="auto">My slicer adds them for me</option><option value="avoid">I want to avoid supports</option></select></label>
         <div class="custom" id="customBed" hidden><input id="bedX" type="number" min="10" max="2000" aria-label="Bed width in mm"> × <input id="bedY" type="number" min="10" max="2000" aria-label="Bed depth in mm"> × <input id="bedZ" type="number" min="10" max="2000" aria-label="Bed height in mm"> mm</div>
         <label>Nozzle <select id="nozzleSel"><option value="0.2">0.2 mm</option><option value="0.4">0.4 mm</option><option value="0.6">0.6 mm</option><option value="0.8">0.8 mm</option></select></label>
         <label>Material <select id="materialSel"><option>PLA</option><option>PETG</option><option>ABS</option><option>TPU</option><option>Resin</option></select></label>
@@ -567,7 +576,10 @@
       </details>
       <div class="rowbtns">
         <button class="btn small" id="autoFixBtn" type="button" title="Closes holes, flips inside-out faces, removes duplicate faces and loose specks. You can undo it.">Fix it for me</button>
-        <button class="btn small" id="orientBtn" type="button" title="Tries six ways of laying the model down and keeps the one with the least overhang">Best orientation</button>
+        <button class="btn small" id="orientBtn" type="button" title="Tries lots of ways of laying the model down and keeps the one that is stable and needs the least support">Best orientation</button>
+        <button class="btn small alt" id="tipBtn" type="button" title="Turn the model 90° forward, then check it again">Tip 90°</button>
+        <button class="btn small alt" id="rollBtn" type="button" title="Turn the model 90° sideways, then check it again">Roll 90°</button>
+        <button class="btn small alt" id="flipBtn" type="button" title="Turn the model upside down, then check it again">Flip</button>
         <button class="btn small alt" id="fixBtn" type="button" title="Download the repaired model as an STL file">Fixed STL</button>
         <button class="btn small alt" id="reportBtn" type="button" title="Download the full report as a text file">Report (.txt)</button>
         <button class="btn small alt" id="pdfBtn" type="button" title="Open a one-page report you can print or save as a PDF">Print / PDF</button>
@@ -687,6 +699,7 @@
   </div>
   <label id="promptLabel" for="partInfo">Write a sentence or two about your part to help us give better and more accurate feedback. This is completely optional!</label>
   <textarea id="partInfo" placeholder="Example: a slider for a mechanical pencil eraser"></textarea>
+  <label class="unitsel dlgrow" for="printerSel0">Printer <select id="printerSel0" aria-label="Which 3D printer you will use"></select></label>
   <div class="btns">
     <button class="btn" id="cancelBtn" type="button">Cancel</button>
     <label class="unitsel" for="unitSel">Model units <select id="unitSel"><option value="mm">millimeters (mm)</option><option value="cm">centimeters (cm)</option><option value="m">meters (m)</option><option value="in">inches (in)</option><option value="ft">feet (ft)</option></select></label>
@@ -1052,26 +1065,41 @@
   var PRINTERS = {
     ender3: { name: 'Creality Ender-3 (220 × 220 × 250)', bed: [220, 220, 250] },
     k1: { name: 'Creality K1 (220 × 220 × 250)', bed: [220, 220, 250] },
+    k1max: { name: 'Creality K1 Max (300 × 300 × 300)', bed: [300, 300, 300] },
+    ender5max: { name: 'Creality Ender-5 Max (400 × 400 × 400)', bed: [400, 400, 400] },
     prusa: { name: 'Prusa MK4 (250 × 210 × 220)', bed: [250, 210, 220] },
+    prusaxl: { name: 'Prusa XL (360 × 360 × 360)', bed: [360, 360, 360] },
     bambu: { name: 'Bambu Lab P1S / X1 (256 × 256 × 256)', bed: [256, 256, 256] },
+    a1mini: { name: 'Bambu Lab A1 mini (180 × 180 × 180)', bed: [180, 180, 180] },
+    h2d: { name: 'Bambu Lab H2D (325 × 320 × 325)', bed: [325, 320, 325] },
+    neptune: { name: 'Elegoo Neptune 4 Max (420 × 420 × 480)', bed: [420, 420, 480] },
+    kobra: { name: 'Anycubic Kobra 2 Max (420 × 420 × 500)', bed: [420, 420, 500] },
     mini: { name: 'Prusa Mini (180 × 180 × 180)', bed: [180, 180, 180] },
     resin: { name: 'Small resin printer (120 × 68 × 155)', bed: [120, 68, 155] },
+    bigresin: { name: 'Large resin printer (218 × 123 × 250)', bed: [218, 123, 250] },
     custom: { name: 'Custom size…', bed: null }
   };
   var MATERIALS = { PLA: 1.24, PETG: 1.27, ABS: 1.04, TPU: 1.21, Resin: 1.1 };
   // how much to trust each finding: exact = measured directly on the mesh, good = reliable but depends on the slicer, est = a sampled or rule-of-thumb estimate
-  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', collide: 'good', tightfit: 'est', loosefit: 'est', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est' };
+  var CONF = { holes: 'exact', inverted: 'exact', junk: 'exact', empty: 'exact', fit: 'exact', bodies: 'exact', overlap: 'good', collide: 'good', tightfit: 'est', loosefit: 'est', overhang: 'good', contact: 'good', flatbase: 'good', cavity: 'good', thin: 'est', small: 'est', closeparts: 'est', smallholes: 'est', sharp: 'est', knife: 'est', bridge: 'est', tall: 'est', peel: 'est', loadthin: 'est', snapthin: 'est', snapnomate: 'exact' };
   var CONFTXT = {
     exact: ['Exact check', 'I measured this directly on your model, so you can rely on it.'],
     good: ['Reliable', 'I measured this on your model, but a slicer may judge borderline cases differently. Check it in your slicer preview.'],
     est: ['Estimate', 'I find this by sampling points on your surface and using rules of thumb, so an occasional miss or false alarm is possible. Double-check it in your slicer preview.']
   };
   var PRICES = { PLA: 20, PETG: 22, ABS: 22, TPU: 35, Resin: 40 };   // dollars per kilogram, a typical price
-  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 45, price: 20, infill: 20, clear: 0 };
+  var settings = { printer: 'ender3', bed: [220, 220, 250], nozzle: 0.4, material: 'PLA', layer: 0.2, overhang: 50, price: 20, infill: 20, clear: 0, supports: 'auto' };
   try { var saved = JSON.parse(localStorage.getItem('meshcheck-settings') || 'null'); if (saved && PRINTERS[saved.printer]) settings = Object.assign(settings, saved); } catch (e) {}
   function saveSettings() { try { localStorage.setItem('meshcheck-settings', JSON.stringify(settings)); } catch (e) {} if (window.mcSettingsChanged) window.mcSettingsChanged(); }
 
   /* what the user says the part is for -> tips (these never change the score) */
+  function intentOf(text) {
+    var t = (text || '').toLowerCase();
+    return {
+      snap: /\b(snap|snaps|snapping|latch|latches|latching|clip|clips|click|hook|hooks|catch|catches|lock|locks|locking|shut)\b/.test(t),
+      move: /\b(move|moves|moving|slide|slides|sliding|rotate|rotates|spin|spins|spinning|hinge|swing|turn|turns|push|pushes)\b/.test(t)
+    };
+  }
   function purposeTips(text, material) {
     var t = (text || '').toLowerCase(), tips = [], load = false;
     function has(re) { return re.test(t); }
@@ -1217,9 +1245,16 @@
         'Rotate it 90° in your slicer, or pick a different printer in Print settings.', null);
     } else {
       res.metrics.fits = 'no';
+      var fitsOn = [], hint = '', cu = o.unitCode || 'mm';
+      Object.keys(PRINTERS).forEach(function (pk) { var bb = PRINTERS[pk].bed; if (bb && ((X <= bb[0] && Y <= bb[1] && Z <= bb[2]) || (Y <= bb[0] && X <= bb[1] && Z <= bb[2]))) fitsOn.push(PRINTERS[pk].name.replace(/ \(.*/, '')); });
+      ['mm', 'cm', 'in'].forEach(function (uk) {
+        if (hint || uk === cu) return;
+        var f = MM[uk] / MM[cu], a = X * f, b2 = Y * f, c2 = Z * f;
+        if (Math.max(a, b2, c2) >= 5 && Math.max(a, b2, c2) <= 400 && a <= 400 && b2 <= 400 && c2 <= 400) hint = ' If your file is really in ' + UNAME[uk] + ', the model is ' + r1(a) + ' × ' + r1(b2) + ' × ' + r1(c2) + ' mm. Change “Model units” under About your model and I will recheck it.';
+      });
       add('fit', 'err', 1, 'Too big for your printer', 'Larger than your printer',
-        'The model is ' + r1(X) + ' × ' + r1(Y) + ' × ' + r1(Z) + ' mm, but your printer only fits ' + bed.join(' × ') + ' mm. If your file is in a different unit, check the Units setting.',
-        'Scale the model down, cut it into pieces that fit, or choose a larger printer in Print settings. If the numbers look wrong, change the units.', null);
+        'The model is ' + r1(X) + ' × ' + r1(Y) + ' × ' + r1(Z) + ' mm, but your printer only fits ' + bed.join(' × ') + ' mm.' + hint + (fitsOn.length ? ' It would fit on: ' + fitsOn.slice(0, 4).join(', ') + '.' : ''),
+        'Pick your printer or units under About your model, scale the model down, or cut it into pieces that fit. If the size looks wrong, change the units.', null);
     }
 
     // separate pieces, found before the ray tests so we can tell "another part" from "the same part"
@@ -1271,9 +1306,14 @@
       if (over.length && overArea > total * 0.005) {
         var pct = Math.max(1, Math.round(overArea / total * 100));
         res.overhangPct = pct;
-        if (!sr || sliceSays) add('overhang', pct >= 15 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
-          'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
-          'Turn the model so the flat side faces down (try the Best orientation button), add supports in your slicer, or redesign the overhang as a 45° slope or a chamfer.', over);
+        if (!sr || sliceSays) {
+          if (o.autoSupport !== false) add('overhang', pct >= 40 ? 'warn' : 'info', 2, 'Some areas will need supports', 'Slicer adds supports here',
+            'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. This does not stop the print: Orca Slicer, Bambu Studio, Cura and PrusaSlicer can add supports for you automatically, so you do not need to model them. Supports use extra plastic and leave rougher marks where they touch the model.',
+            'Check the support preview in your slicer. If you would rather avoid supports, turn the model (try Best orientation or the rotate buttons), or change the overhang to a 45° slope or chamfer. You can switch “Supports” in Print settings to “I want to avoid supports” to see stricter warnings.', over);
+          else add('overhang', pct >= 15 ? 'warn' : 'info', 2, 'Overhang needs support', 'Overhang needs support',
+            'About ' + pct + '% of the surface tilts past ' + angle + '° with nothing underneath, shown in yellow. A printer can’t place plastic in mid-air, so this area may sag or print messy.',
+            'Turn the model so the flat side faces down (try the Best orientation button), or redesign the overhang as a 45° slope or a chamfer.', over);
+        }
         // bridges: flat undersides joined together; how wide a flat span hangs in the air?
         var flatOver = over.filter(function (t) { return nz[t] < -0.99; });
         if (flatOver.length) {
@@ -1290,9 +1330,12 @@
           var spanMax = 0, bridgeTris = [];
           cl.forEach(function (cc) { var sp = Math.max(cc.hi[0] - cc.lo[0], cc.hi[1] - cc.lo[1]) / mmU; if (sp >= 5 && cc.zh - cc.zl < 0.5 * mmU) { spanMax = Math.max(spanMax, sp); bridgeTris = bridgeTris.concat(cc.tris); } });
           if (bridgeTris.length) {
-            add('bridge', spanMax >= 10 ? 'warn' : 'info', 2, 'Long flat bridge', 'Flat span in mid-air',
+            if (o.autoSupport !== false) add('bridge', 'info', 2, 'Flat span in mid-air', 'Flat span in mid-air',
+              'A flat underside about ' + r1(spanMax) + ' mm wide hangs in the air. Printers can bridge about 10 to 30 mm cleanly with the right settings, and a slicer can add supports under longer spans automatically, so you do not need to model them.',
+              'Check the support preview in your slicer. Under about 30 mm it usually prints fine as a bridge. For longer spans, let the slicer add supports, or round the span into an arch.', bridgeTris);
+            else add('bridge', spanMax >= 10 ? 'warn' : 'info', 2, 'Long flat bridge', 'Flat span in mid-air',
               'A flat underside about ' + r1(spanMax) + ' mm wide hangs in the air with nothing under it. Printers can usually bridge about 5 to 10 mm cleanly. Longer spans sag in the middle and leave a rough, stringy bottom.',
-              'Add a support pillar or rib under it, split the span with a column, or round it into an arch. You can also turn the model so the span stands upright.', bridgeTris);
+              'Split the span with a column or rib, or round it into an arch. You can also turn the model so the span stands upright.', bridgeTris);
           }
         }
       }
@@ -1413,9 +1456,9 @@
       var hit = cast(t, c0[0] - nx * off, c0[1] - ny * off, c0[2] - nzz * off, -nx, -ny, -nzz, thickMax);   // into the model: wall thickness
       if (hit) {
         var th = (hit.d + off) / mmU, facing = nx * nxA[hit.t] + ny * nyA[hit.t] + nzz * nz[hit.t];
-        if (facing > 0.5) thick[t] = th;   // the far side points away from us: a real wall, not a sharp corner
-        if (facing > 0.5 && th <= thinThr) { if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); } }
-        if (facing > 0.5 && th < 2) { under2.push(t); p2.push(hit.t); }
+        if (facing < -0.5) thick[t] = th;   // the far side faces away from us (opposite normal): a real wall, not a sharp corner
+        if (facing < -0.5 && th < thinThr - 0.02) { if (th < noz) { tiny.push(t); pY.push(hit.t); tinyMin = Math.min(tinyMin, th); } else { thin.push(t); pT.push(hit.t); thinMin = Math.min(thinMin, th); } }
+        if (facing < -0.5 && th < 2) { under2.push(t); p2.push(hit.t); }
       }
       var gap = cast(t, c0[0] + nx * off, c0[1] + ny * off, c0[2] + nzz * off, nx, ny, nzz, gapMaxD);          // out of the model: gap width
       if (gap) {
@@ -1518,6 +1561,25 @@
       add('loadthin', 'warn', 1, 'Thin walls for a load-bearing part', 'Walls thin for a strong part',
         'You said this part carries a load, but about ' + Math.round(under2.length / Math.max(1, tested) * 100) + '% of the sampled surface is under 2 mm thick, shown in red. Thin walls are the first thing to crack under load.',
         'Thicken walls to at least 2 mm where the force goes, add ribs or fillets at corners, and use more perimeters in your slicer.', under2.concat(p2));
+    }
+
+    // what the description says the part must do steers extra checks (not just tips)
+    var intent = intentOf(o.purpose);
+    if (intent.snap) {
+      res.tips.push({ title: 'You described a snap-fit or latch', text: 'MeshCheck can’t test spring force, so I check what I can measure: how thin the hooks and tabs are, and whether the mating parts are placed close enough to measure. Make a hook or tab at least 2 mm thick, add a fillet where it joins the body, print it so the layers run along the tab (not across it), and try PETG, which bends more than PLA before it snaps. Print the latch alone first as a quick test.' });
+      if (under2.length >= 3) {
+        add('snapthin', 'warn', 1, 'Snap or latch parts look too thin', 'Latches may snap off',
+          'You said parts should snap or latch together. About ' + under2.length + ' sampled spots are under 2 mm thick, shown in red. Small hooks and tabs this thin usually snap off the first time they flex, especially when the layers run across them.',
+          'Thicken hooks and tabs to at least 2 mm, add a rounded fillet where they join the body, make the tab longer so it bends over a longer distance, and print it so the layers run along the tab.', under2.concat(p2));
+      }
+      if (bodies > 1 && res.fit && res.fit.pairs && res.fit.pairs.length === 0) {
+        add('snapnomate', 'info', 2, 'Latching parts are not placed together', 'Latch halves are apart',
+          'You said the parts should snap together, but the ' + bodies + ' parts in this file are more than 3 mm apart, so I can’t measure how the latch fits. A snap-fit works or fails by a few tenths of a millimetre.',
+          'In your CAD program, place the parts closed together the way they sit when latched, export them in one file, and upload that version. Then I can measure the clearances.', null);
+      }
+    }
+    if (intent.move && bodies === 1) {
+      res.tips.push({ title: 'You said something moves', text: 'This file has only one part, so I can’t check how parts move. Put every moving part in one file, placed together the way they assemble, and upload that.' });
     }
 
     // ordering, boxes, score
@@ -2111,7 +2173,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     if (!has) chosen = null;
   }
   function openPrompt() {
-    partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; setFile('');
+    partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; $('printerSel0').value = settings.printer; setFile('');
     promptDlg.showModal();
   }
   var WRONG_MSG = 'Whoops! It seems like we don’t support this type of file. Try STL, 3MF or OBJ files instead!';
@@ -2132,7 +2194,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
   function handle(f) {
     if (!f) return;
     if (!OK.test(f.name)) { showWrong(f.name); return; }
-    if (!promptDlg.open) { partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; promptDlg.showModal(); }
+    if (!promptDlg.open) { partInfo.value = ''; projName.value = ''; $('unitSel').value = 'mm'; $('printerSel0').value = settings.printer; promptDlg.showModal(); }
     chosen = f; setFile(f.name);
     if (wrongDlg.open) wrongDlg.close();
   }
@@ -2152,6 +2214,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
           projects.push({ name: name, file: f.name, info: partInfo.value, mesh: r.m, unreadable: r.bad, units: r.m.units || $('unitSel').value, when: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) });
           curP = projects.length - 1;
           setView('project');
+          if (settings.printer === 'custom') $('settingsBox').open = true;
         }, Math.max(0, 1800 - (Date.now() - t0)));
       });
   });
@@ -2224,7 +2287,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
 
   function cur() { var p = projects[curP]; return p && p.mesh ? p : null; }
   function optsFor(p) {
-    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, clear: settings.clear || 0, purpose: p.info || '' };
+    return { perMm: p.s / MM[p.units || 'mm'], uname: UNAME[p.units || 'mm'], nozzle: settings.nozzle, bed: settings.bed, overhang: settings.overhang, density: MATERIALS[settings.material], layer: settings.layer, material: settings.material, price: settings.price, infill: (settings.infill || 20) / 100, clear: settings.clear || 0, purpose: p.info || '', unitCode: p.units || 'mm', autoSupport: settings.supports !== 'avoid' };
   }
   function toast(msg, ms) {
     var t = $('toast'); t.textContent = msg; t.hidden = false;
@@ -2274,7 +2337,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
       li.appendChild(b); ul.appendChild(li);
     });
     var M = res.metrics, rows = [
-      ['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm'],
+      ['Size', r1(M.x) + ' × ' + r1(M.y) + ' × ' + r1(M.z) + ' mm' + sizeInUnits(M)],
       ['Volume', r1(M.volume / 1000) + ' cm³'],
       ['Surface', r1(M.area / 100) + ' cm²'],
       ['Triangles', M.tris.toLocaleString()],
@@ -2308,11 +2371,16 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     if (id) showDetail(issueById(p, id)); else detail.hidden = true;
   }
   function syncSettings() {
-    $('printerSel').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
+    $('printerSel').value = settings.printer; $('supportSel').value = settings.supports || 'auto'; if ($('printerSel0')) $('printerSel0').value = settings.printer; if ($('printerQ')) $('printerQ').value = settings.printer; $('customBed').hidden = settings.printer !== 'custom';
     $('bedX').value = settings.bed[0]; $('bedY').value = settings.bed[1]; $('bedZ').value = settings.bed[2];
     $('nozzleSel').value = String(settings.nozzle); $('materialSel').value = settings.material; $('layerSel').value = String(settings.layer);
     $('infillSel').value = String(settings.infill || 20); $('clearSel').value = String(settings.clear || 0); $('priceIn').value = settings.price; $('angleRange').value = settings.overhang; $('angleOut').textContent = settings.overhang + '°';
-    var p = cur(); if (p) $('unitSel2').value = p.units || 'mm';
+    var p = cur(); if (p) { $('unitSel2').value = p.units || 'mm'; $('unitQ').value = p.units || 'mm'; }
+  }
+  function sizeInUnits(M) {   // also show the size in the units the file was saved in
+    var pp = cur(), u = pp && pp.units || 'mm'; if (u === 'mm') return '';
+    var f = 1 / MM[u], dp = u === 'in' || u === 'ft' || u === 'm' ? 2 : 1, q = function (v) { return (Math.round(v * f * Math.pow(10, dp)) / Math.pow(10, dp)); };
+    return ' (' + q(M.x) + ' × ' + q(M.y) + ' × ' + q(M.z) + ' ' + u + ')';
   }
   function refreshProject() {
     var p = cur();
@@ -2420,7 +2488,11 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
   });
 
   // print settings
-  Object.keys(PRINTERS).forEach(function (k) { var o = document.createElement('option'); o.value = k; o.textContent = PRINTERS[k].name; $('printerSel').appendChild(o); });
+  Object.keys(PRINTERS).forEach(function (k) { [$('printerSel'), $('printerSel0'), $('printerQ')].forEach(function (sel) { var o = document.createElement('option'); o.value = k; o.textContent = PRINTERS[k].name; sel.appendChild(o); }); });
+  $('printerSel0').addEventListener('change', function () {
+    settings.printer = this.value; if (PRINTERS[this.value].bed) settings.bed = PRINTERS[this.value].bed.slice();
+    saveSettings(); syncSettings();
+  });
   $('printerSel').addEventListener('change', function () {
     settings.printer = this.value; if (PRINTERS[this.value].bed) settings.bed = PRINTERS[this.value].bed.slice();
     saveSettings(); syncSettings(); recheck();
@@ -2428,6 +2500,9 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
   ['bedX', 'bedY', 'bedZ'].forEach(function (id, i) {
     $(id).addEventListener('change', function () { var v = Math.max(10, Math.min(2000, +this.value || 200)); settings.bed[i] = v; saveSettings(); syncSettings(); recheck(); });
   });
+  $('printerQ').addEventListener('change', function () { var sel = $('printerSel'); sel.value = this.value; sel.dispatchEvent(new Event('change')); });
+  $('unitQ').addEventListener('change', function () { var sel = $('unitSel2'); sel.value = this.value; sel.dispatchEvent(new Event('change')); });
+  $('supportSel').addEventListener('change', function () { settings.supports = this.value; saveSettings(); recheck(); });
   $('nozzleSel').addEventListener('change', function () { settings.nozzle = +this.value; saveSettings(); recheck(); });
   $('materialSel').addEventListener('change', function () { settings.material = this.value; settings.price = PRICES[this.value] || 20; saveSettings(); syncSettings(); recheck(); });
   $('infillSel').addEventListener('change', function () { settings.infill = +this.value || 20; saveSettings(); syncSettings(); recheck(); });
@@ -2520,6 +2595,15 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
     return { m: m, n: n, s: s };
   }
   function suppText(g) { return g < 0.05 ? 'almost none' : 'about ' + r1(g) + ' g'; }
+  function turnModel(kind, what) {   // manual orientation: turn the model yourself, then everything is checked again
+    var p = cur(); if (!p || !p.res) return;
+    if (!p.orig) p.orig = p.mesh;
+    p.mesh = rotate(p.mesh, kind); p.res = null; p.orientNote = null; refreshProject();
+    toast(what + ' Use “Undo orientation” to go back to your file’s own orientation.', 6000);
+  }
+  $('tipBtn').addEventListener('click', function () { turnModel(1, 'Tipped the model 90° forward.'); });
+  $('rollBtn').addEventListener('click', function () { turnModel(3, 'Rolled the model 90° sideways.'); });
+  $('flipBtn').addEventListener('click', function () { turnModel(5, 'Flipped the model upside down.'); });
   $('orientBtn').addEventListener('click', function () {
     var p = cur(); if (!p || !p.res) return;
     if (p.orig) { p.mesh = p.orig; p.orig = null; p.res = null; refreshProject(); toast('Back to the orientation from your file.'); return; }
@@ -2528,7 +2612,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
       var units = p.units || 'mm', resin = settings.material === 'Resin', mat = MATERIALS[settings.material] || 1.24, cands = orientCandidates(p.mesh), list = [];
       cands.forEach(function (nv) {
         var m2 = rotToDown(p.mesh, nv[0], nv[1], nv[2]), sc = orientScore(m2, 0.6 / MM[units] * (settings.nozzle / 0.4));
-        list.push({ nv: nv, m: m2, sc: sc, base: nv[0] === 0 && nv[1] === 0 && nv[2] === -1, cost: sc.over - 0.15 * Math.min(sc.contact, 0.3) + 0.04 * Math.min(1, sc.height / (sc.span || sc.height || 1)) });
+        list.push({ nv: nv, m: m2, sc: sc, base: nv[0] === 0 && nv[1] === 0 && nv[2] === -1, cost: sc.over - 0.5 * Math.min(sc.contact, 0.3) + 0.04 * Math.min(1, sc.height / (sc.span || sc.height || 1)) });
       });
       list.sort(function (x, y) { return x.cost - y.cost; });
       var short = list.slice(0, 5); if (!short.some(function (c) { return c.base; })) short.push(list.filter(function (c) { return c.base; })[0]);
@@ -2538,7 +2622,7 @@ function sweep(parts, S, ai, ax, neg, pos, steps, deadline) {
         var nm = normForSlice(c.m), sr = null;
         try { sr = slicePrint(nm.m, nm.n, { perMm: nm.s / MM[units], layer: resin ? 0.05 : settings.layer, nozzle: resin ? 0.2 : settings.nozzle, overhang: settings.overhang, resin: resin, infill: (settings.infill || 20) / 100 }); } catch (e) { sr = null; }
         c.sr = sr; c.g = sr ? sr.supportMm3 / 1000 * mat : null;
-        c.cost2 = (sr && sr.volumeMm3 > 0 ? sr.supportMm3 / sr.volumeMm3 : c.sc.over) - 0.15 * Math.min(c.sc.contact, 0.3) + 0.04 * Math.min(1, c.sc.height / (c.sc.span || c.sc.height || 1));
+        c.cost2 = (sr && sr.volumeMm3 > 0 ? sr.supportMm3 / sr.volumeMm3 : c.sc.over) - 0.5 * Math.min(c.sc.contact, 0.3) + 0.04 * Math.min(1, c.sc.height / (c.sc.span || c.sc.height || 1));
       });
       var base = short.filter(function (c) { return c.base; })[0], best = short.slice().sort(function (x, y) { return x.cost2 - y.cost2; })[0];
       btn.disabled = false;
